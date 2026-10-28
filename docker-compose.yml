@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  3dcost-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 3dcost-app
+    restart: always
+    ports:
+      - "${HOST_PORT:-3070}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/3dcost}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

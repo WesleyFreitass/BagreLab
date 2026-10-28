@@ -1,0 +1,34 @@
+name: Deploy Automático na VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Sincronizar e Subir Container na VPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conectar via SSH e Atualizar Projeto
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          script_stop: true
+          script: |
+            echo "🚀 [CI/CD] Atualizando 3DCost na VPS..."
+            mkdir -p /root/3dcost
+            cd /root/3dcost
+            if [ -d .git ]; then
+              git clean -fd
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+            docker compose up -d --build
+            echo "✅ [CI/CD] Deploy do 3DCost concluído com sucesso na porta 3070!"
