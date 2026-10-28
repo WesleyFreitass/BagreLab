@@ -95,3 +95,17 @@ Adicione os Secrets em `Settings > Secrets and variables > Actions` no seu repos
 - `VPS_PORT`: `22`
 
 A cada `git push origin main`, o container é compilado e atualizado automaticamente na VPS!
+
+---
+
+## 📌 Roadmap & Backlog (Próximas Versões)
+
+### Versão 1.1 (Em Planejamento)
+- [ ] **Cadastro Ultrarrápido de Clientes:** Enxugar o formulário de cadastro para conter estritamente:
+  - **Nome** (Cliente ou Empresa)
+  - **Número** (WhatsApp com DDD para disparo)
+  - **Observações** (Preferências de material, cores, histórico)
+  *(Remoção de campos secundários como CPF/CNPJ, e-mail e endereço para atendimento ágil e sem fricção).*
+- [ ] **Templates de Mensagem WhatsApp Customizáveis:** Permitir personalizar a mensagem padrão direto na tela de configurações.
+- [ ] **Disparo de Proposta com PDF Anexo:** Envio do PDF gerado via webhook/Evolution API na VPS.
+
