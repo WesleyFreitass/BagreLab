@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Customer,
   Printer,
@@ -17,7 +17,7 @@ import {
   defaultLaborActivities,
   defaultConsumables,
 } from '../lib/calculator';
-import { sendWhatsAppMessageApi } from '../lib/api';
+import { sendWhatsAppMessageApi, parseMakerWorldUrl } from '../lib/api';
 import { ProposalModal } from './ProposalModal';
 import {
   Plus,
@@ -36,6 +36,7 @@ import {
   Users,
   UserPlus,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 interface CalculatorTabProps {
@@ -43,6 +44,7 @@ interface CalculatorTabProps {
   materials: Material[];
   settings: WorkshopSettings;
   customers: Customer[];
+  importedData?: { items?: QuoteItem[]; notes?: string } | null;
   onSaveQuote: (quote: Partial<SavedQuote>) => Promise<void>;
   onQuickSaveCustomer?: (customer: Partial<Customer>) => Promise<Customer>;
 }
@@ -52,6 +54,7 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   materials,
   settings,
   customers,
+  importedData,
   onSaveQuote,
   onQuickSaveCustomer,
 }) => {
@@ -107,6 +110,61 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const [copiedZap, setCopiedZap] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Quick MakerWorld Import within CalculatorTab
+  const [quickMwUrl, setQuickMwUrl] = useState('');
+  const [isQuickMwLoading, setIsQuickMwLoading] = useState(false);
+  const [quickMwFeedback, setQuickMwFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (importedData?.items && importedData.items.length > 0) {
+      setItems(importedData.items);
+    }
+    if (importedData?.notes) {
+      setNotes((prev) => (prev ? `${prev}\n${importedData.notes}` : importedData.notes!));
+    }
+  }, [importedData]);
+
+  const handleQuickImportMw = async () => {
+    if (!quickMwUrl || !quickMwUrl.trim()) return;
+    setIsQuickMwLoading(true);
+    setQuickMwFeedback(null);
+    try {
+      const data = await parseMakerWorldUrl(quickMwUrl.trim());
+      const profile = data.selectedInstance || data.instances[0];
+      if (!profile) throw new Error('Nenhum perfil de impressão encontrado');
+
+      const matType = profile.filaments[0]?.type?.toUpperCase();
+      const matchedMat = materials.find((m) => m.name.toUpperCase().includes(matType || '') || m.type.toUpperCase().includes(matType || ''));
+
+      const newItem: QuoteItem = {
+        id: `mw-${profile.id}-${Date.now()}`,
+        name: `${data.title} (${profile.title.slice(0, 30)})`,
+        materialId: matchedMat?.id || materials[0]?.id || 'mat-1',
+        printerId: printers[0]?.id || 'kobra-1',
+        weightGrams: profile.weightGrams,
+        printDays: profile.printDays,
+        printHours: profile.printHours,
+        printMinutes: profile.printMinutes,
+      };
+
+      setItems((prev) => [...prev, newItem]);
+      setNotes((prev) =>
+        prev
+          ? `${prev}\n• Importado MakerWorld: ${data.title} (#${data.designId})`
+          : `• Importado MakerWorld: ${data.title} (#${data.designId})\nLink: ${quickMwUrl}`
+      );
+      setQuickMwUrl('');
+      setQuickMwFeedback(`Peça "${data.title}" importada com sucesso!`);
+      setTimeout(() => setQuickMwFeedback(null), 4000);
+    } catch (err: any) {
+      console.error(err);
+      setQuickMwFeedback(err.message || 'Falha ao importar do MakerWorld.');
+      setTimeout(() => setQuickMwFeedback(null), 5000);
+    } finally {
+      setIsQuickMwLoading(false);
+    }
+  };
 
   // Real-time calculation
   const calculation = calculateQuote(
@@ -510,6 +568,38 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar Peça</span>
               </button>
+            </div>
+
+            {/* Quick MakerWorld Auto-Import Bar */}
+            <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 shrink-0">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <span>Importar Peça Direto do MakerWorld:</span>
+                </div>
+                <div className="flex flex-1 max-w-lg gap-2">
+                  <input
+                    type="url"
+                    value={quickMwUrl}
+                    onChange={(e) => setQuickMwUrl(e.target.value)}
+                    placeholder="Cole o link do MakerWorld (ex: .../models/13038-flying-fish)..."
+                    className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleQuickImportMw}
+                    disabled={isQuickMwLoading}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                  >
+                    {isQuickMwLoading ? 'Importando...' : 'Importar'}
+                  </button>
+                </div>
+              </div>
+              {quickMwFeedback && (
+                <div className="text-[11px] font-medium text-emerald-800 bg-white/80 px-2 py-1 rounded border border-emerald-200">
+                  {quickMwFeedback}
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">

@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Fallback imediato se o MongoDB estiver offline (evita buffering de 10s do Mongoose)
 router.use((req, res, next) => {
-  if (req.path === '/whatsapp/send') return next();
+  if (req.path === '/whatsapp/send' || req.path === '/makerworld/parse') return next();
   if (mongoose.connection.readyState !== 1) {
     return res.status(503).json({ error: 'MongoDB não conectado. Modo offline ativo.' });
   }
@@ -327,6 +327,127 @@ router.post('/whatsapp/send', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// --- PARSER MAKERWORLD (ORÇAMENTO AUTOMÁTICO) ---
+router.post('/makerworld/parse', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL do MakerWorld é obrigatória.' });
+    }
+
+    // Validação estrita para aceitar somente MakerWorld
+    if (!url.toLowerCase().includes('makerworld.com')) {
+      return res.status(400).json({
+        error: 'Apenas links oficiais da plataforma MakerWorld são aceitos (ex: https://makerworld.com/pt/models/13038-flying-fish).'
+      });
+    }
+
+    // Extrai o ID numérico do modelo (ex: models/13038)
+    const matchId = url.match(/models\/(\d+)/i);
+    if (!matchId) {
+      return res.status(400).json({
+        error: 'Não foi possível identificar o ID do modelo na URL. Formato esperado: makerworld.com/.../models/{id}...'
+      });
+    }
+    const modelId = matchId[1];
+
+    // Extrai o profileId específico do hash se presente (ex: #profileId-83672)
+    const matchProfile = url.match(/profileId[-=](\d+)/i);
+    const requestedProfileId = matchProfile ? Number(matchProfile[1]) : null;
+
+    // Consulta a API de design oficial da Bambu Lab / MakerWorld
+    const apiRes = await fetch(`https://api.bambulab.com/v1/design-service/design/${modelId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!apiRes.ok) {
+      return res.status(apiRes.status).json({
+        error: `Modelo nº ${modelId} não encontrado no MakerWorld ou indisponível.`
+      });
+    }
+
+    const d = await apiRes.json();
+    const rawInstances = Array.isArray(d.instances) ? d.instances : [];
+
+    if (rawInstances.length === 0) {
+      return res.status(404).json({
+        error: 'Nenhum perfil de impressão fatiado encontrado para este modelo no MakerWorld.'
+      });
+    }
+
+    const instances = rawInstances.map((inst) => {
+      const seconds = Number(inst.prediction) || 0;
+      const totalHours = seconds / 3600;
+      const printDays = Math.floor(totalHours / 24);
+      const remainingHours = totalHours % 24;
+      const printHours = Math.floor(remainingHours);
+      const printMinutes = Math.round((remainingHours - printHours) * 60);
+
+      const filaments = (inst.instanceFilaments || []).map((f) => ({
+        type: (f.type || 'PLA').toUpperCase(),
+        color: f.color || '#3b82f6',
+        usedG: Number(f.usedG) || 0,
+        usedM: Number(f.usedM) || 0,
+      }));
+
+      const compatList = [];
+      if (inst.extention?.modelInfo?.compatibility?.devProductName) {
+        compatList.push(inst.extention.modelInfo.compatibility.devProductName);
+      }
+      if (Array.isArray(inst.extention?.modelInfo?.otherCompatibility)) {
+        inst.extention.modelInfo.otherCompatibility.forEach((c) => {
+          if (c.devProductName && !compatList.includes(c.devProductName)) {
+            compatList.push(c.devProductName);
+          }
+        });
+      }
+
+      return {
+        id: inst.id,
+        title: inst.title || 'Perfil de Impressão',
+        predictionSeconds: seconds,
+        totalHours,
+        printDays,
+        printHours,
+        printMinutes,
+        weightGrams: Number(inst.weight) || 0,
+        platesCount: inst.extention?.modelInfo?.plates?.length || 1,
+        nozzleDiameter: inst.extention?.modelInfo?.compatibility?.nozzleDiameter || 0.4,
+        compatibilityPrinters: compatList,
+        filaments,
+        isDefault: Boolean(inst.isDefault || inst.id === d.defaultInstanceId),
+      };
+    });
+
+    let selectedInstance = null;
+    if (requestedProfileId) {
+      selectedInstance = instances.find((i) => i.id === requestedProfileId);
+    }
+    if (!selectedInstance) {
+      selectedInstance = instances.find((i) => i.isDefault) || instances[0];
+    }
+
+    const result = {
+      designId: Number(modelId),
+      title: d.title || 'Modelo MakerWorld',
+      coverUrl: d.coverUrl || (instances[0]?.cover || ''),
+      creatorName: d.designCreator?.name || 'Designer MakerWorld',
+      creatorAvatar: d.designCreator?.avatar || '',
+      instances,
+      selectedInstance,
+      sourceUrl: url,
+    };
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao consultar MakerWorld: ' + err.message });
   }
 });
 

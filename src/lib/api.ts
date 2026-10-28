@@ -4,6 +4,7 @@ import {
   Material,
   WorkshopSettings,
   SavedQuote,
+  MakerWorldModelData,
 } from './types';
 import {
   initialCustomers,
@@ -550,4 +551,21 @@ export async function sendWhatsAppMessageApi(params: {
     mode: 'link',
     whatsappUrl,
   };
+}
+
+// --- PARSER MAKERWORLD ---
+export async function parseMakerWorldUrl(url: string): Promise<MakerWorldModelData> {
+  const res = await fetch('/api/makerworld/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+    signal: AbortSignal.timeout(12000),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Erro ao consultar MakerWorld (${res.status})`);
+  }
+
+  return await res.json();
 }

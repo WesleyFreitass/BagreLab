@@ -1,3 +1,37 @@
+export interface MakerWorldFilament {
+  type: string;
+  color: string;
+  usedG: number;
+  usedM?: number;
+}
+
+export interface MakerWorldInstance {
+  id: number;
+  title: string;
+  predictionSeconds: number;
+  totalHours: number;
+  printDays: number;
+  printHours: number;
+  printMinutes: number;
+  weightGrams: number;
+  platesCount: number;
+  nozzleDiameter: number;
+  compatibilityPrinters: string[];
+  filaments: MakerWorldFilament[];
+  isDefault: boolean;
+}
+
+export interface MakerWorldModelData {
+  designId: number;
+  title: string;
+  coverUrl: string;
+  creatorName: string;
+  creatorAvatar?: string;
+  instances: MakerWorldInstance[];
+  selectedInstance: MakerWorldInstance;
+  sourceUrl: string;
+}
+
 export interface Customer {
   id: string;
   _id?: string;

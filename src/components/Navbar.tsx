@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calculator, Users, Printer as PrinterIcon, Layers, Settings, FileText, Database, Wifi } from 'lucide-react';
+import { Calculator, Sparkles, Users, Printer as PrinterIcon, Layers, Settings, FileText, Database, Wifi } from 'lucide-react';
 
-export type TabType = 'calculator' | 'customers' | 'printers' | 'materials' | 'settings' | 'quotes';
+export type TabType = 'calculator' | 'makerworld' | 'customers' | 'printers' | 'materials' | 'settings' | 'quotes';
 
 interface NavbarProps {
   activeTab: TabType;
@@ -16,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const tabs = [
     { id: 'calculator', label: 'Orçador & Calculadora', icon: Calculator },
+    { id: 'makerworld', label: 'Orçador MakerWorld', icon: Sparkles },
     { id: 'customers', label: 'Clientes', icon: Users },
     { id: 'printers', label: 'Impressoras', icon: PrinterIcon },
     { id: 'materials', label: 'Filamentos & Resinas', icon: Layers },

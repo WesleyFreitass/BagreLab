@@ -5,6 +5,7 @@ import {
   Material,
   WorkshopSettings,
   SavedQuote,
+  QuoteItem,
 } from './lib/types';
 import {
   fetchCustomers,
@@ -26,6 +27,7 @@ import {
 import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
 import { Navbar, TabType } from './components/Navbar';
 import { CalculatorTab } from './components/CalculatorTab';
+import { MakerWorldTab } from './components/MakerWorldTab';
 import { CustomersTab } from './components/CustomersTab';
 import { PrintersTab } from './components/PrintersTab';
 import { MaterialsTab } from './components/MaterialsTab';
@@ -41,6 +43,7 @@ export function App() {
   const [materials, setMaterials] = useState<Material[]>(initialMaterials);
   const [settings, setSettings] = useState<WorkshopSettings>(initialWorkshopSettings);
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
+  const [importedQuoteData, setImportedQuoteData] = useState<{ items?: QuoteItem[]; notes?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load initial data
@@ -149,6 +152,11 @@ export function App() {
     setQuotes((prev) => prev.filter((q) => q.id !== id && q._id !== id));
   };
 
+  const handleImportFromMakerWorld = (data: { modelTitle: string; items: QuoteItem[]; notes?: string }) => {
+    setImportedQuoteData({ items: data.items, notes: data.notes });
+    setActiveTab('calculator');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -175,8 +183,18 @@ export function App() {
             materials={materials}
             settings={settings}
             customers={customers}
+            importedData={importedQuoteData}
             onSaveQuote={handleSaveQuote}
             onQuickSaveCustomer={handleSaveCustomer}
+          />
+        )}
+
+        {activeTab === 'makerworld' && (
+          <MakerWorldTab
+            printers={printers}
+            materials={materials}
+            settings={settings}
+            onImportToCalculator={handleImportFromMakerWorld}
           />
         )}
 
@@ -230,8 +248,8 @@ export function App() {
           <span>
             <strong>3DCost</strong> • Sistema de Engenharia de Custos e Formação de Preço para Impressão 3D
           </span>
-          <span className="font-mono text-slate-500">
-            Fórmulas SEBRAE & CNC Kitchen • Baseado na Planilha v1.3
+          <span className="text-slate-400">
+            © {new Date().getFullYear()} 3DCost • Orçamentos Profissionais
           </span>
         </div>
       </footer>
