@@ -132,7 +132,12 @@ Prazo de produção: 1 a 2 dias úteis.`;
                         #{q.quoteNumber}
                       </td>
                       <td className="py-3 px-4 font-semibold text-slate-900">
-                        {q.customerName || 'Cliente'}
+                        <span>{q.customerName || 'Cliente'}</span>
+                        {q.customerPhone && (
+                          <span className="text-[11px] font-mono text-slate-400 block font-normal">
+                            {q.customerPhone}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-500">
                         {q.date || '-'}
@@ -191,6 +196,8 @@ Prazo de produção: 1 a 2 dias úteis.`;
           isOpen={Boolean(selectedQuote)}
           onClose={() => setSelectedQuote(null)}
           customerName={selectedQuote.customerName}
+          customerPhone={selectedQuote.customerPhone}
+          customerEmail={selectedQuote.customerEmail}
           quoteNumber={selectedQuote.quoteNumber}
           date={selectedQuote.date}
           items={selectedQuote.items}

@@ -8,6 +8,7 @@ import apiRoutes from './routes/api.js';
 import { PrinterModel } from './models/Printer.js';
 import { MaterialModel } from './models/Material.js';
 import { SettingModel } from './models/Setting.js';
+import { CustomerModel } from './models/Customer.js';
 
 dotenv.config();
 
@@ -130,6 +131,19 @@ async function seedDefaultData() {
           { id: 'ast-4', name: 'Bancada de Pós-Processamento', cost: 687, lifespanYears: 5, monthlyDepreciation: 11.45 },
           { id: 'ast-5', name: 'Alicate e Ferramentas', cost: 20, lifespanYears: 1, monthlyDepreciation: 1.67 },
         ],
+      });
+    }
+
+    const customersCount = await CustomerModel.countDocuments();
+    if (customersCount === 0) {
+      console.log('🌱 Populando cliente de demonstração...');
+      await CustomerModel.create({
+        name: 'Cliente Demonstração',
+        phone: '11999998888',
+        email: 'contato@cliente.com',
+        city: 'São Paulo',
+        state: 'SP',
+        notes: 'Cliente de teste inicial',
       });
     }
   } catch (err) {

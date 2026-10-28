@@ -1,3 +1,17 @@
+export interface Customer {
+  id: string;
+  _id?: string;
+  name: string;
+  phone: string; // WhatsApp com DDD
+  email?: string;
+  document?: string; // CPF ou CNPJ
+  city?: string;
+  state?: string;
+  address?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
 export interface Printer {
   id: string;
   name: string;
@@ -46,6 +60,11 @@ export interface WorkshopSettings {
   onlinePlatformFeePercent: number; // Taxa marketplace ML/Shopee (ex: 0%)
   cardFeePercent: number; // Taxa de cartão / gateway (ex: 0%)
   defaultProfitMarginPercent: number; // Margem padrão (ex: 50%)
+  // Integração opcional WhatsApp
+  whatsappApiUrl?: string;
+  whatsappApiKey?: string;
+  whatsappInstance?: string;
+  whatsappCustomMessage?: string;
   fixedExpenses: FixedExpenseItem[];
   assets: AssetDepreciationItem[];
 }
@@ -111,7 +130,10 @@ export interface SavedQuote {
   _id?: string;
   id?: string;
   quoteNumber: string;
+  customerId?: string;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
   customerContact?: string;
   date: string;
   status: 'draft' | 'sent' | 'approved' | 'in_production' | 'completed';

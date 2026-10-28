@@ -13,6 +13,11 @@ const settingSchema = new mongoose.Schema(
     onlinePlatformFeePercent: { type: Number, default: 0 },
     cardFeePercent: { type: Number, default: 0 },
     defaultProfitMarginPercent: { type: Number, default: 50 },
+    // Configurações Opcionais de Disparo WhatsApp (Evolution API / Gateway VPS)
+    whatsappApiUrl: { type: String, default: '' },
+    whatsappApiKey: { type: String, default: '' },
+    whatsappInstance: { type: String, default: '' },
+    whatsappCustomMessage: { type: String, default: '' },
     fixedExpenses: [
       {
         id: String,

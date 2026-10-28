@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
+  Customer,
   Printer,
   Material,
   WorkshopSettings,
   SavedQuote,
 } from './lib/types';
 import {
+  fetchCustomers,
+  saveCustomerApi,
+  deleteCustomerApi,
   fetchPrinters,
   savePrinterApi,
   deletePrinterApi,
@@ -19,18 +23,20 @@ import {
   deleteQuoteApi,
   checkBackendHealth,
 } from './lib/api';
-import { initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
-import { Navbar } from './components/Navbar';
+import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
+import { Navbar, TabType } from './components/Navbar';
 import { CalculatorTab } from './components/CalculatorTab';
+import { CustomersTab } from './components/CustomersTab';
 import { PrintersTab } from './components/PrintersTab';
 import { MaterialsTab } from './components/MaterialsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { QuotesTab } from './components/QuotesTab';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'calculator' | 'printers' | 'materials' | 'settings' | 'quotes'>('calculator');
+  const [activeTab, setActiveTab] = useState<TabType>('calculator');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
   const [materials, setMaterials] = useState<Material[]>(initialMaterials);
   const [settings, setSettings] = useState<WorkshopSettings>(initialWorkshopSettings);
@@ -44,13 +50,15 @@ export function App() {
         const isOnline = await checkBackendHealth();
         setIsBackendConnected(isOnline);
 
-        const [loadedPrinters, loadedMaterials, loadedSettings, loadedQuotes] = await Promise.all([
+        const [loadedCustomers, loadedPrinters, loadedMaterials, loadedSettings, loadedQuotes] = await Promise.all([
+          fetchCustomers(),
           fetchPrinters(),
           fetchMaterials(),
           fetchSettings(),
           fetchQuotes(),
         ]);
 
+        setCustomers(loadedCustomers);
         setPrinters(loadedPrinters);
         setMaterials(loadedMaterials);
         setSettings(loadedSettings);
@@ -63,6 +71,20 @@ export function App() {
     }
     init();
   }, []);
+
+  // Customer handlers
+  const handleSaveCustomer = async (customer: Partial<Customer>): Promise<Customer> => {
+    const saved = await saveCustomerApi(customer);
+    const updated = await fetchCustomers();
+    setCustomers(updated);
+    return saved;
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    await deleteCustomerApi(id);
+    const updated = await fetchCustomers();
+    setCustomers(updated);
+  };
 
   // Handlers for Printers
   const handleSavePrinter = async (printer: Partial<Printer>) => {
@@ -152,7 +174,21 @@ export function App() {
             printers={printers}
             materials={materials}
             settings={settings}
+            customers={customers}
             onSaveQuote={handleSaveQuote}
+            onQuickSaveCustomer={handleSaveCustomer}
+          />
+        )}
+
+        {activeTab === 'customers' && (
+          <CustomersTab
+            customers={customers}
+            quotes={quotes}
+            onSaveCustomer={handleSaveCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+            onSelectCustomerForQuote={() => {
+              setActiveTab('calculator');
+            }}
           />
         )}
 

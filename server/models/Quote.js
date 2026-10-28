@@ -3,7 +3,10 @@ import mongoose from 'mongoose';
 const quoteSchema = new mongoose.Schema(
   {
     quoteNumber: { type: String, required: true },
+    customerId: { type: String, default: null },
     customerName: { type: String, required: true, default: 'Cliente' },
+    customerPhone: { type: String, default: '' },
+    customerEmail: { type: String, default: '' },
     customerContact: { type: String, default: '' },
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
     status: {

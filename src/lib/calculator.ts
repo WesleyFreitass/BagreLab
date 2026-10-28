@@ -1,4 +1,5 @@
 import {
+  Customer,
   Printer,
   Material,
   WorkshopSettings,
@@ -268,6 +269,86 @@ export function calculateQuote(
     finalPriceWithShipping,
     breakdown,
   };
+}
+
+export const initialCustomers: Customer[] = [
+  {
+    id: 'cust-1',
+    name: 'Wesley Freitas',
+    phone: '11999998888',
+    email: 'wesley@exemplo.com',
+    city: 'São Paulo',
+    state: 'SP',
+    notes: 'Cliente Frequente - Peças Técnicas',
+  },
+  {
+    id: 'cust-2',
+    name: 'Oficina Maker 3D',
+    phone: '11988887777',
+    email: 'contato@oficinamaker.com',
+    city: 'Campinas',
+    state: 'SP',
+    notes: 'Prototipagem rápida',
+  },
+];
+
+/**
+ * Normaliza número de telefone para o padrão WhatsApp internacional (DDI 55)
+ */
+export function cleanWhatsAppPhone(phone: string): string {
+  let cleaned = (phone || '').replace(/\D/g, '');
+  if (cleaned.length === 10 || cleaned.length === 11) {
+    cleaned = `55${cleaned}`;
+  }
+  return cleaned;
+}
+
+/**
+ * Gera URL direta para o WhatsApp Web / App
+ */
+export function generateWhatsAppLink(phone: string, message: string): string {
+  const cleanPhone = cleanWhatsAppPhone(phone);
+  return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Gera mensagem formatada da proposta comercial para envio no WhatsApp
+ */
+export function formatWhatsAppProposalMessage(params: {
+  quoteNumber: string;
+  customerName: string;
+  date?: string;
+  items: QuoteItem[];
+  materials?: Material[];
+  finalPrice: number;
+  shippingCost?: number;
+  notes?: string;
+}): string {
+  const { quoteNumber, customerName, date, items, materials = [], finalPrice, shippingCost = 0, notes } = params;
+  
+  const itemsList = items
+    .map((item, idx) => {
+      const mat = materials.find((m) => m.id === item.materialId);
+      const totalTimeHours = item.printDays * 24 + item.printHours + item.printMinutes / 60;
+      return `  ▫️ *${item.name || `Item ${idx + 1}`}* (${item.weightGrams}g, ${mat?.name || 'Filamento'}, ~${formatHours(totalTimeHours)})`;
+    })
+    .join('\n');
+
+  const notesText = notes ? `\n📌 *Observações:* ${notes}\n` : '';
+  const shippingText = shippingCost > 0 ? `📦 *Frete / Envio:* ${formatCurrency(shippingCost)}\n` : '';
+
+  return `📐 *ORÇAMENTO DE IMPRESSÃO 3D #${quoteNumber}*
+🗓️ *Data:* ${date || new Date().toLocaleDateString('pt-BR')}
+👤 *Cliente:* ${customerName || 'Cliente'}
+
+📋 *Peças Inclusas:*
+${itemsList}
+${notesText}${shippingText}
+💰 *Valor Total do Pedido:* ${formatCurrency(finalPrice)}
+✅ *Prazo de Validade:* 15 dias corridos
+💳 *Formas de Pagamento:* PIX, Cartão ou Transferência
+
+Para aprovar o início da produção ou tirar dúvidas, basta responder esta mensagem!`;
 }
 
 /**

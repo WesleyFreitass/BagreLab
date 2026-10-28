@@ -1,9 +1,11 @@
 import React from 'react';
-import { Calculator, Printer as PrinterIcon, Layers, Settings, FileText, Database, Wifi } from 'lucide-react';
+import { Calculator, Users, Printer as PrinterIcon, Layers, Settings, FileText, Database, Wifi } from 'lucide-react';
+
+export type TabType = 'calculator' | 'customers' | 'printers' | 'materials' | 'settings' | 'quotes';
 
 interface NavbarProps {
-  activeTab: 'calculator' | 'printers' | 'materials' | 'settings' | 'quotes';
-  setActiveTab: (tab: 'calculator' | 'printers' | 'materials' | 'settings' | 'quotes') => void;
+  activeTab: TabType;
+  setActiveTab: (tab: TabType) => void;
   isBackendConnected: boolean;
 }
 
@@ -14,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const tabs = [
     { id: 'calculator', label: 'Orçador & Calculadora', icon: Calculator },
+    { id: 'customers', label: 'Clientes', icon: Users },
     { id: 'printers', label: 'Impressoras', icon: PrinterIcon },
     { id: 'materials', label: 'Filamentos & Resinas', icon: Layers },
     { id: 'settings', label: 'Oficina & Mão de Obra', icon: Settings },

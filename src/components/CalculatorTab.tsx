@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Customer,
   Printer,
   Material,
   WorkshopSettings,
@@ -12,9 +13,11 @@ import {
   calculateQuote,
   formatCurrency,
   formatHours,
+  formatWhatsAppProposalMessage,
   defaultLaborActivities,
   defaultConsumables,
 } from '../lib/calculator';
+import { sendWhatsAppMessageApi } from '../lib/api';
 import { ProposalModal } from './ProposalModal';
 import {
   Plus,
@@ -27,25 +30,49 @@ import {
   Percent,
   ChevronDown,
   ChevronUp,
+  Phone,
+  Mail,
+  MessageSquare,
+  Users,
+  UserPlus,
+  X,
 } from 'lucide-react';
 
 interface CalculatorTabProps {
   printers: Printer[];
   materials: Material[];
   settings: WorkshopSettings;
+  customers: Customer[];
   onSaveQuote: (quote: Partial<SavedQuote>) => Promise<void>;
+  onQuickSaveCustomer?: (customer: Partial<Customer>) => Promise<Customer>;
 }
 
 export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   printers,
   materials,
   settings,
+  customers,
   onSaveQuote,
+  onQuickSaveCustomer,
 }) => {
-  // Quote Header
+  // Quote Header & Customer
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('Wesley Freitas');
+  const [customerPhone, setCustomerPhone] = useState('11999998888');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [quoteNumber, setQuoteNumber] = useState(() => `ORC-${Date.now().toString().slice(-4)}`);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Quick Customer Creation Modal
+  const [isQuickCustomerOpen, setIsQuickCustomerOpen] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickPhone, setQuickPhone] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
+  const [quickCity, setQuickCity] = useState('');
+
+  // WhatsApp Sending State
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppFeedback, setWhatsAppFeedback] = useState<string | null>(null);
 
   // Items / Mesas (Default Benchy)
   const [items, setItems] = useState<QuoteItem[]>([
@@ -127,23 +154,105 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
     );
   };
 
+  // Customer Selection
+  const handleCustomerSelect = (id: string) => {
+    setSelectedCustomerId(id);
+    if (!id) return;
+    const found = customers.find((c) => c.id === id);
+    if (found) {
+      setCustomerName(found.name);
+      setCustomerPhone(found.phone);
+      setCustomerEmail(found.email || '');
+    }
+  };
+
+  // Quick Customer Creation
+  const handleQuickSaveCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickName || !quickPhone) {
+      alert('Nome e WhatsApp são obrigatórios.');
+      return;
+    }
+
+    if (onQuickSaveCustomer) {
+      const created = await onQuickSaveCustomer({
+        name: quickName,
+        phone: quickPhone,
+        email: quickEmail,
+        city: quickCity,
+      });
+      setSelectedCustomerId(created.id);
+      setCustomerName(created.name);
+      setCustomerPhone(created.phone);
+      setCustomerEmail(created.email || '');
+    } else {
+      setCustomerName(quickName);
+      setCustomerPhone(quickPhone);
+      setCustomerEmail(quickEmail);
+    }
+
+    setIsQuickCustomerOpen(false);
+    setQuickName('');
+    setQuickPhone('');
+    setQuickEmail('');
+    setQuickCity('');
+  };
+
+  // Direct WhatsApp send
+  const handleSendWhatsAppDirect = async () => {
+    if (!customerPhone || customerPhone.replace(/\D/g, '').length < 8) {
+      alert('Por favor, informe um número de WhatsApp válido para o cliente.');
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    setWhatsAppFeedback(null);
+
+    const message = formatWhatsAppProposalMessage({
+      quoteNumber,
+      customerName,
+      date,
+      items,
+      materials,
+      finalPrice: calculation.finalPriceWithShipping || calculation.salePriceCash,
+      shippingCost: calculation.shippingCost,
+      notes,
+    });
+
+    try {
+      const res = await sendWhatsAppMessageApi({
+        phone: customerPhone,
+        message,
+        quoteId: quoteNumber,
+      });
+
+      if (res.mode === 'link' && res.whatsappUrl) {
+        window.open(res.whatsappUrl, '_blank');
+        setWhatsAppFeedback('WhatsApp aberto para envio!');
+      } else {
+        setWhatsAppFeedback(res.message || 'Proposta enviada via WhatsApp!');
+      }
+    } catch (err) {
+      console.error(err);
+      setWhatsAppFeedback('Erro ao disparar mensagem.');
+    } finally {
+      setIsSendingWhatsApp(false);
+      setTimeout(() => setWhatsAppFeedback(null), 4000);
+    }
+  };
+
   // Copy WhatsApp summary
   const handleCopyWhatsApp = () => {
-    const text = `*Orçamento de Impressão 3D #${quoteNumber}*
-Cliente: ${customerName || 'Cliente'}
-
-Itens:
-${items
-  .map((i) => {
-    const mat = materials.find((m) => m.id === i.materialId);
-    return `• *${i.name || 'Peça'}*: ${i.weightGrams}g (${mat?.name || 'PLA'}) - Tempo: ${i.printHours}h ${i.printMinutes}m`;
-  })
-  .join('\n')}
-
-💰 *Total à Vista (PIX):* ${formatCurrency(calculation.salePriceCash)}
-${calculation.shippingCost > 0 ? `📦 *Frete:* ${formatCurrency(calculation.shippingCost)}\n*Total com Entrega:* ${formatCurrency(calculation.finalPriceWithShipping)}` : ''}
-
-Prazo de produção: 1 a 2 dias úteis.`;
+    const text = formatWhatsAppProposalMessage({
+      quoteNumber,
+      customerName,
+      date,
+      items,
+      materials,
+      finalPrice: calculation.finalPriceWithShipping || calculation.salePriceCash,
+      shippingCost: calculation.shippingCost,
+      notes,
+    });
 
     navigator.clipboard.writeText(text);
     setCopiedZap(true);
@@ -156,7 +265,10 @@ Prazo de produção: 1 a 2 dias úteis.`;
       setIsSaving(true);
       await onSaveQuote({
         quoteNumber,
+        customerId: selectedCustomerId || undefined,
         customerName,
+        customerPhone,
+        customerEmail,
         date,
         items,
         laborActivities,
@@ -274,30 +386,67 @@ Prazo de produção: 1 a 2 dias úteis.`;
           {/* Header Card: Client & Quote Meta */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Identificação do Orçamento</h3>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Identificação do Orçamento & Cliente</h3>
+              </div>
               <span className="text-xs text-slate-500 font-mono">#{quoteNumber}</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="text-slate-600 font-semibold block mb-1">Nome do Cliente / Empresa</label>
+            {/* Quick Select from Saved Customers */}
+            <div className="bg-slate-50/90 p-3 rounded-lg border border-slate-200/80 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>Selecionar Cliente Cadastrado:</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickCustomerOpen(true)}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>+ Novo Cliente</span>
+                </button>
+              </div>
+
+              <select
+                value={selectedCustomerId}
+                onChange={(e) => handleCustomerSelect(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Cliente Avulso (Digitação Manual) --</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.phone ? `• WhatsApp: ${c.phone}` : ''} {c.city ? `(${c.city})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="sm:col-span-2">
+                <label className="text-slate-600 font-semibold block mb-1">Nome do Cliente / Empresa *</label>
                 <input
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: Wesley Freitas"
+                  placeholder="Ex: João Silva / Maker Tech"
                 />
               </div>
 
               <div>
-                <label className="text-slate-600 font-semibold block mb-1">Código do Orçamento</label>
-                <input
-                  type="text"
-                  value={quoteNumber}
-                  onChange={(e) => setQuoteNumber(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="text-slate-600 font-semibold block mb-1">WhatsApp (com DDD) *</label>
+                <div className="relative">
+                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="11999998888"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -306,6 +455,30 @@ Prazo de produção: 1 a 2 dias úteis.`;
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-slate-600 font-semibold block mb-1">E-mail do Cliente (Opcional)</label>
+                <div className="relative">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="cliente@exemplo.com"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="text-slate-600 font-semibold block mb-1">Código do Orçamento</label>
+                <input
+                  type="text"
+                  value={quoteNumber}
+                  onChange={(e) => setQuoteNumber(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -700,11 +873,27 @@ Prazo de produção: 1 a 2 dias úteis.`;
           {/* Quick Action Buttons */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2.5">
             <button
-              onClick={handleCopyWhatsApp}
+              onClick={handleSendWhatsAppDirect}
+              disabled={isSendingWhatsApp}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors"
+              title="Disparar a proposta comercial diretamente no WhatsApp do cliente"
             >
-              {copiedZap ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedZap ? 'Copiado para o WhatsApp!' : 'Copiar Texto para o WhatsApp'}</span>
+              <MessageSquare className="w-4 h-4" />
+              <span>{isSendingWhatsApp ? 'Preparando envio...' : 'Enviar Proposta no WhatsApp do Cliente'}</span>
+            </button>
+
+            {whatsAppFeedback && (
+              <div className="p-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-center text-xs font-semibold animate-pulse">
+                {whatsAppFeedback}
+              </div>
+            )}
+
+            <button
+              onClick={handleCopyWhatsApp}
+              className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold py-2 px-4 rounded-lg text-xs flex items-center justify-center gap-2 border border-slate-200 cursor-pointer transition-colors"
+            >
+              {copiedZap ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+              <span>{copiedZap ? 'Copiado para o WhatsApp!' : 'Copiar Texto da Proposta'}</span>
             </button>
 
             <button
@@ -734,6 +923,8 @@ Prazo de produção: 1 a 2 dias úteis.`;
         isOpen={isProposalModalOpen}
         onClose={() => setIsProposalModalOpen(false)}
         customerName={customerName}
+        customerPhone={customerPhone}
+        customerEmail={customerEmail}
         quoteNumber={quoteNumber}
         date={date}
         items={items}
@@ -742,6 +933,91 @@ Prazo de produção: 1 a 2 dias úteis.`;
         calculation={calculation}
         notes={notes}
       />
+
+      {/* Quick Customer Creation Modal */}
+      {isQuickCustomerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-sm">Cadastrar Novo Cliente Rápido</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickCustomerOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickSaveCustomer} className="space-y-3 text-xs">
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">Nome Completo / Empresa *</label>
+                <input
+                  type="text"
+                  required
+                  value={quickName}
+                  onChange={(e) => setQuickName(e.target.value)}
+                  placeholder="Ex: Carlos Oliveira"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">WhatsApp (com DDD) *</label>
+                <input
+                  type="text"
+                  required
+                  value={quickPhone}
+                  onChange={(e) => setQuickPhone(e.target.value)}
+                  placeholder="11999998888"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">E-mail (Opcional)</label>
+                <input
+                  type="email"
+                  value={quickEmail}
+                  onChange={(e) => setQuickEmail(e.target.value)}
+                  placeholder="carlos@exemplo.com"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-semibold block mb-1">Cidade / UF (Opcional)</label>
+                <input
+                  type="text"
+                  value={quickCity}
+                  onChange={(e) => setQuickCity(e.target.value)}
+                  placeholder="São Paulo - SP"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickCustomerOpen(false)}
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-2xs cursor-pointer"
+                >
+                  Salvar e Vincular
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

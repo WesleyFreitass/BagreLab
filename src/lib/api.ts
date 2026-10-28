@@ -1,16 +1,19 @@
 import {
+  Customer,
   Printer,
   Material,
   WorkshopSettings,
   SavedQuote,
 } from './types';
 import {
+  initialCustomers,
   initialPrinters,
   initialMaterials,
   initialWorkshopSettings,
 } from './calculator';
 
 const LOCAL_STORAGE_KEYS = {
+  CUSTOMERS: '3dcost_customers',
   PRINTERS: '3dcost_printers',
   MATERIALS: '3dcost_materials',
   SETTINGS: '3dcost_settings',
@@ -408,4 +411,143 @@ export async function deleteQuoteApi(id: string): Promise<void> {
   const localList = await fetchQuotes();
   const filtered = localList.filter((q) => q.id !== id);
   localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(filtered));
+}
+
+// --- CLIENTES (CADASTRO & HISTÓRICO) ---
+export async function fetchCustomers(): Promise<Customer[]> {
+  try {
+    const res = await fetch('/api/customers', { signal: AbortSignal.timeout(2000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map((item: any) => ({
+          ...item,
+          id: item._id || item.id,
+        }));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.CUSTOMERS, JSON.stringify(mapped));
+        return mapped;
+      }
+    }
+  } catch {
+    // offline fallback
+  }
+
+  const stored = localStorage.getItem(LOCAL_STORAGE_KEYS.CUSTOMERS);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      // fallback
+    }
+  }
+
+  localStorage.setItem(LOCAL_STORAGE_KEYS.CUSTOMERS, JSON.stringify(initialCustomers));
+  return initialCustomers;
+}
+
+export async function saveCustomerApi(customer: Partial<Customer>): Promise<Customer> {
+  const localList = await fetchCustomers();
+  let saved: Customer;
+  let updatedList: Customer[];
+
+  try {
+    const isEditing = customer.id && !customer.id.startsWith('local-');
+    const endpoint = isEditing ? `/api/customers/${customer.id}` : '/api/customers';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    const res = await fetch(endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customer),
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      saved = { ...data, id: data._id || data.id };
+      const idx = localList.findIndex((c) => c.id === saved.id);
+      if (idx >= 0) {
+        localList[idx] = saved;
+        updatedList = [...localList];
+      } else {
+        updatedList = [saved, ...localList];
+      }
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedList));
+      return saved;
+    }
+  } catch {
+    // offline fallback
+  }
+
+  saved = {
+    ...customer,
+    id: customer.id || `local-c-${Date.now()}`,
+    name: customer.name || 'Novo Cliente',
+    phone: customer.phone || '',
+    email: customer.email || '',
+    document: customer.document || '',
+    city: customer.city || '',
+    state: customer.state || '',
+    address: customer.address || '',
+    notes: customer.notes || '',
+    createdAt: customer.createdAt || new Date().toISOString(),
+  } as Customer;
+
+  const idx = localList.findIndex((c) => c.id === saved.id);
+  if (idx >= 0) {
+    localList[idx] = saved;
+    updatedList = [...localList];
+  } else {
+    updatedList = [saved, ...localList];
+  }
+
+  localStorage.setItem(LOCAL_STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedList));
+  return saved;
+}
+
+export async function deleteCustomerApi(id: string): Promise<void> {
+  try {
+    await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+  } catch {
+    // offline
+  }
+
+  const localList = await fetchCustomers();
+  const filtered = localList.filter((c) => c.id !== id);
+  localStorage.setItem(LOCAL_STORAGE_KEYS.CUSTOMERS, JSON.stringify(filtered));
+}
+
+// --- DISPARO WHATSAPP ---
+export async function sendWhatsAppMessageApi(params: {
+  phone: string;
+  message: string;
+  quoteId?: string;
+}): Promise<{ success: boolean; mode: 'api' | 'link'; whatsappUrl?: string; message?: string }> {
+  try {
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // offline fallback
+  }
+
+  // Fallback offline: gera link direto
+  let cleanPhone = params.phone.replace(/\D/g, '');
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    cleanPhone = `55${cleanPhone}`;
+  }
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(params.message)}`;
+
+  return {
+    success: true,
+    mode: 'link',
+    whatsappUrl,
+  };
 }

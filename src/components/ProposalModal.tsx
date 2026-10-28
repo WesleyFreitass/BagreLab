@@ -1,12 +1,15 @@
 import React from 'react';
-import { X, Printer as PrintIcon, Check, Copy } from 'lucide-react';
+import { X, Printer as PrintIcon, Check, Copy, MessageSquare } from 'lucide-react';
 import { QuoteCalculationResult, QuoteItem, Material, Printer } from '../lib/types';
-import { formatCurrency, formatHours } from '../lib/calculator';
+import { formatCurrency, formatHours, formatWhatsAppProposalMessage } from '../lib/calculator';
+import { sendWhatsAppMessageApi } from '../lib/api';
 
 interface ProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
   customerName: string;
+  customerPhone?: string;
+  customerEmail?: string;
   quoteNumber: string;
   date: string;
   items: QuoteItem[];
@@ -20,6 +23,8 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({
   isOpen,
   onClose,
   customerName,
+  customerPhone,
+  customerEmail,
   quoteNumber,
   date,
   items,
@@ -29,11 +34,43 @@ export const ProposalModal: React.FC<ProposalModalProps> = ({
   notes,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [sentZap, setSentZap] = React.useState(false);
 
   if (!isOpen) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSendWhatsApp = async () => {
+    let targetPhone = customerPhone;
+    if (!targetPhone) {
+      const prompted = prompt('Digite o WhatsApp do cliente com DDD (ex: 11999998888):');
+      if (!prompted) return;
+      targetPhone = prompted;
+    }
+
+    const message = formatWhatsAppProposalMessage({
+      quoteNumber,
+      customerName,
+      date,
+      items,
+      materials,
+      finalPrice: calculation.finalPriceWithShipping || calculation.salePriceCash,
+      shippingCost: calculation.shippingCost,
+      notes,
+    });
+
+    const res = await sendWhatsAppMessageApi({
+      phone: targetPhone,
+      message,
+    });
+
+    if (res.mode === 'link' && res.whatsappUrl) {
+      window.open(res.whatsappUrl, '_blank');
+    }
+    setSentZap(true);
+    setTimeout(() => setSentZap(false), 3000);
   };
 
   const handleCopySummary = () => {
@@ -73,6 +110,14 @@ Prazo de Produção: 1 a 2 dias úteis após aprovação.`;
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleSendWhatsApp}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
+              title="Disparar proposta no WhatsApp do cliente"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>{sentZap ? 'Disparado!' : 'Enviar no WhatsApp'}</span>
+            </button>
             <button
               onClick={handleCopySummary}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 shadow-xs cursor-pointer transition-colors"
@@ -123,7 +168,17 @@ Prazo de Produção: 1 a 2 dias úteis após aprovação.`;
             <div>
               <span className="text-slate-400 block uppercase font-bold text-[10px] tracking-wider mb-0.5">Destinatário:</span>
               <strong className="text-slate-900 text-sm block">{customerName || 'Cliente'}</strong>
-              <span className="text-slate-500">Orçamento formal sob demanda</span>
+              {customerPhone && (
+                <span className="text-slate-600 font-mono text-[11px] block mt-0.5">
+                  WhatsApp: {customerPhone}
+                </span>
+              )}
+              {customerEmail && (
+                <span className="text-slate-500 text-[11px] block">
+                  E-mail: {customerEmail}
+                </span>
+              )}
+              <span className="text-slate-500 block mt-0.5">Orçamento formal sob demanda</span>
             </div>
             <div>
               <span className="text-slate-400 block uppercase font-bold text-[10px] tracking-wider mb-0.5">Especificação Técnica:</span>
