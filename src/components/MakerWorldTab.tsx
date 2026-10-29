@@ -12,7 +12,6 @@ import {
 } from '../lib/types';
 import { parseMakerWorldUrl } from '../lib/api';
 import { calculateQuote, formatCurrency, formatHours } from '../lib/calculator';
-import { ProposalModal } from './ProposalModal';
 import {
   Sparkles,
   Link as LinkIcon,
@@ -25,9 +24,9 @@ import {
   CheckCircle2,
   Rocket,
   Palette,
-  FileText,
-  ShieldCheck,
   Share2,
+  Send,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface MakerWorldTabProps {
@@ -69,12 +68,16 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
   const [selectedPrinterId, setSelectedPrinterId] = useState<string>(printers[0]?.id || '');
   const [profitMargin, setProfitMargin] = useState(settings.defaultProfitMarginPercent || 50);
 
-  // Submission & modals state
+  // Decision selection ('confirm_quote' | 'direct_print')
+  const [selectedDecision, setSelectedDecision] = useState<'confirm_quote' | 'direct_print'>('confirm_quote');
+
+  // Submission & modal states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedQuote, setSubmittedQuote] = useState<SavedQuote | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showProposalPreview, setShowProposalPreview] = useState(false);
   const [pendingDecision, setPendingDecision] = useState<'confirm_quote' | 'direct_print' | null>(null);
+
+  const isMaker = currentUser.role === 'maker';
 
   // Initialize filament slots whenever selectedProfile changes
   useEffect(() => {
@@ -147,11 +150,11 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
     );
   };
 
-  const handleSlotColorChange = (slotIndex: number, colorName: string, colorHex?: string) => {
+  const handleSlotNotesChange = (slotIndex: number, notes: string) => {
     setFilamentSlots((prev) =>
       prev.map((slot) =>
         slot.slotIndex === slotIndex
-          ? { ...slot, customColorName: colorName, customColorHex: colorHex || slot.customColorHex }
+          ? { ...slot, customColorName: notes }
           : slot
       )
     );
@@ -247,10 +250,13 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         cardFeePercent: settings.cardFeePercent || 0,
         onlinePlatformFeePercent: settings.onlinePlatformFeePercent || 0,
         shippingCost: 0,
-        notes: `Solicitação via Portal MakerWorld.\nDecisão do Cliente: ${
-          decision === 'direct_print' ? 'Pode Imprimir! (Aprovação Direta)' : 'Confirmar Orçamento Final'
+        notes: `Solicitação via Portal MakerWorld (BagreLab).\nDecisão do Cliente: ${
+          decision === 'direct_print' ? 'Pode Imprimir! (Aprovação de Produção)' : 'Confirmar Orçamento Final'
         }\nPerfil: ${selectedProfile.title}\nCores/Materiais: ${filamentSlots
-          .map((s) => `${s.originalType} (${s.usedG}g - ${s.customColorName || s.originalColor})`)
+          .map((s) => {
+            const mat = materials.find((m) => m.id === s.selectedMaterialId);
+            return `${s.originalType} (${s.usedG}g) -> ${mat?.name || ''} [Obs: ${s.customColorName || 'Sem obs'}]`;
+          })
           .join(', ')}`,
         calculation,
       };
@@ -314,21 +320,23 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
 
     const decisionText =
       submittedQuote.clientDecision === 'direct_print'
-        ? '🚀 *PODE IMPRIMIR!* (Aprovação Direta de Produção)'
+        ? '🚀 *PODE IMPRIMIR!* (Aprovação de Produção)'
         : '📋 *CONFIRMAR ORÇAMENTO FINAL* (Revisar Detalhes)';
 
-    const msg = `Olá! Acabei de enviar um pedido no *3DCost* referente ao modelo do MakerWorld:
+    const msg = `Olá! Acabei de enviar um pedido no *BagreLab* referente ao modelo do MakerWorld:
 
 📦 *Peça:* ${modelData.title}
 🔖 *Código:* #${submittedQuote.quoteNumber}
 🎯 *Minha Decisão:* ${decisionText}
 💰 *Valor Estimado:* ${formatCurrency(calculation.salePriceCash)}
-🎨 *Materiais/Cores:*
+🎨 *Materiais Selecionados:*
 ${filamentSlots
-  .map(
-    (s, i) =>
-      `  • Slot ${i + 1}: ${s.originalType} (${s.usedG}g) - Cor: ${s.customColorName || s.originalColor}`
-  )
+  .map((s, i) => {
+    const mat = materials.find((m) => m.id === s.selectedMaterialId);
+    return `  • Slot ${i + 1} (${s.originalType}): ${mat?.name || 'Padrão'} ${
+      s.customColorName ? `(Obs: ${s.customColorName})` : ''
+    }`;
+  })
   .join('\n')}
 
 👤 *Meu Nome:* ${currentUser.name}
@@ -339,11 +347,11 @@ Podemos prosseguir com o pedido?`;
     // Send to Maker phone if available in settings, or standard share
     const targetPhone = settings.whatsappInstance || '';
     const cleanPhone = targetPhone.replace(/\D/g, '');
-    const url = cleanPhone
+    const targetUrl = cleanPhone
       ? `https://api.whatsapp.com/send?phone=55${cleanPhone}&text=${encodeURIComponent(msg)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
 
-    window.open(url, '_blank');
+    window.open(targetUrl, '_blank');
   };
 
   return (
@@ -360,7 +368,7 @@ Podemos prosseguir com o pedido?`;
             </h2>
           </div>
           <p className="text-sm text-slate-500">
-            Cole a URL de qualquer peça do <strong>MakerWorld</strong>. O sistema extrai métricas, filamentos e calcula o orçamento exato com as cores da oficina.
+            Cole a URL de qualquer peça do <strong>MakerWorld</strong> para extrair tempo, consumo de filamentos e orçar instantaneamente no BagreLab.
           </p>
         </div>
 
@@ -525,7 +533,7 @@ Podemos prosseguir com o pedido?`;
               </div>
             </div>
 
-            {/* Per-Color & Per-Slot Material Customization (REQUESTED FEATURE) */}
+            {/* Per-Color & Per-Slot Material Customization (BASED ON WORKSHOP INVENTORY) */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
@@ -560,7 +568,7 @@ Podemos prosseguir com o pedido?`;
                                 ? '#ffffff'
                                 : '#1e293b',
                           }}
-                          title={`Cor original: ${slot.originalColor}`}
+                          title={`Cor original no modelo: ${slot.originalColor}`}
                         >
                           #{idx + 1}
                         </div>
@@ -581,11 +589,11 @@ Podemos prosseguir com o pedido?`;
                         </div>
                       </div>
 
-                      {/* Right: Workshop Material Selector & Custom Color Preference */}
+                      {/* Right: Stock Filament Selection & Observações */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-1 max-w-md">
                         <div className="flex-1">
                           <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
-                            Filamento da Oficina:
+                            Filamento & Cor (Estoque):
                           </label>
                           <select
                             value={slot.selectedMaterialId}
@@ -594,33 +602,39 @@ Podemos prosseguir com o pedido?`;
                           >
                             {materials.map((m) => (
                               <option key={m.id} value={m.id}>
-                                {m.name} ({m.type} • {formatCurrency(m.costPerKg)}/kg)
+                                {isMaker
+                                  ? `${m.name} (${m.type} • ${formatCurrency(m.costPerKg)}/kg)`
+                                  : `${m.name} (${m.type}${m.color ? ` - Cor: ${m.color}` : ''})`}
                               </option>
                             ))}
                           </select>
                         </div>
 
+                        {/* Observações Field (Replaced free-text color per request) */}
                         <div className="sm:w-36">
                           <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
-                            Cor Desejada:
+                            Observações:
                           </label>
                           <input
                             type="text"
                             value={slot.customColorName || ''}
-                            onChange={(e) => handleSlotColorChange(slot.slotIndex, e.target.value)}
-                            placeholder="Ex: Preto, Azul..."
+                            onChange={(e) => handleSlotNotesChange(slot.slotIndex, e.target.value)}
+                            placeholder="Ex: Acabamento, detalhe..."
                             className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
 
-                        <div className="text-right sm:w-20 shrink-0">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase block">
-                            Subtotal
-                          </span>
-                          <span className="text-xs font-bold text-slate-900 font-mono">
-                            {formatCurrency(slotCost)}
-                          </span>
-                        </div>
+                        {/* Maker-Only: Subtotal */}
+                        {isMaker && (
+                          <div className="text-right sm:w-20 shrink-0">
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase block">
+                              Subtotal
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 font-mono">
+                              {formatCurrency(slotCost)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -628,8 +642,8 @@ Podemos prosseguir com o pedido?`;
               </div>
             </div>
 
-            {/* Workshop Calibration Panel (Shown in full for Maker role) */}
-            {currentUser.role === 'maker' && (
+            {/* Workshop Calibration Panel (Shown exclusively for Maker role) */}
+            {isMaker && (
               <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <Sliders className="w-4 h-4 text-blue-600" />
@@ -684,10 +698,10 @@ Podemos prosseguir com o pedido?`;
 
           </div>
 
-          {/* Right Column: Price Hero & Client Decision Options (5 Cols) */}
+          {/* Right Column: Final Price & Decision Selection (5 Cols) */}
           <div className="lg:col-span-5 space-y-5">
             
-            {/* Price Box */}
+            {/* Price Hero Box */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="bg-slate-900 text-white p-6 text-center space-y-1">
                 <span className="text-xs text-slate-400 uppercase font-bold tracking-wider block font-mono">
@@ -701,88 +715,79 @@ Podemos prosseguir com o pedido?`;
                 </span>
               </div>
 
-              {/* Details List */}
-              <div className="p-5 space-y-2.5 text-xs text-slate-600 border-t border-slate-100">
-                <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                  <span>Filamento ({selectedProfile.weightGrams}g em {filamentSlots.length} cor/cores)</span>
-                  <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.materialCost)}</span>
+              {/* DRE Summary List: SHOWN ONLY FOR MAKER (Client sees NO internal costs, per request) */}
+              {isMaker && (
+                <div className="p-5 space-y-2.5 text-xs text-slate-600 border-t border-slate-100">
+                  <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span>Filamento ({selectedProfile.weightGrams}g em {filamentSlots.length} cor/cores)</span>
+                    <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.materialCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span>Depreciação Máquina (~{formatHours(selectedProfile.totalHours)})</span>
+                    <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.depreciationCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span>Energia Elétrica</span>
+                    <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.electricityCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span>Risco de Falhas ({settings.failureRatePercent || 15}%)</span>
+                    <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.failureCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span>Mão de Obra Oficina</span>
+                    <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.laborCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 font-bold text-slate-900 bg-slate-50 px-2 rounded-lg">
+                    <span>Custo de Produção da Oficina</span>
+                    <span className="font-mono">{formatCurrency(calculation.totalProductionCost)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 text-emerald-700 font-semibold px-2">
+                    <span>Lucro Líquido Estimado ({profitMargin}%)</span>
+                    <span className="font-mono">{formatCurrency(calculation.profitCost)}</span>
+                  </div>
                 </div>
-                
-                {currentUser.role === 'maker' ? (
-                  <>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Depreciação Máquina (~{formatHours(selectedProfile.totalHours)})</span>
-                      <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.depreciationCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Energia Elétrica</span>
-                      <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.electricityCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Risco de Falhas ({settings.failureRatePercent || 15}%)</span>
-                      <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.failureCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Mão de Obra Oficina</span>
-                      <span className="font-mono font-medium text-slate-800">{formatCurrency(calculation.laborCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1.5 font-bold text-slate-900 bg-slate-50 px-2 rounded-lg">
-                      <span>Custo de Produção da Oficina</span>
-                      <span className="font-mono">{formatCurrency(calculation.totalProductionCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 text-emerald-700 font-semibold px-2">
-                      <span>Lucro Líquido Estimado ({profitMargin}%)</span>
-                      <span className="font-mono">{formatCurrency(calculation.profitCost)}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Preparação, Fatiamento & Inspeção</span>
-                      <span className="font-mono text-emerald-600 font-medium">Incluso</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Remoção de Suportes & Pós-processamento</span>
-                      <span className="font-mono text-emerald-600 font-medium">Incluso</span>
-                    </div>
-                    <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                      <span>Garantia de Qualidade e Reposição</span>
-                      <span className="font-mono text-emerald-600 font-medium">Incluso</span>
-                    </div>
-                  </>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* TWO CLIENT DECISION BUTTONS (THE CORE USER REQUIREMENT) */}
+            {/* CLIENT DECISION SELECTION & SUBMIT BUTTON */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
               <div>
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-1">
                   Selecione sua Decisão para Prosseguir:
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Escolha como deseja enviar este pedido para a oficina do Maker.
+                  Escolha uma das opções abaixo e clique em Enviar Pedido.
                 </p>
               </div>
 
               <div className="space-y-3">
-                {/* Decision 1: Confirmar Orçamento Final */}
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleSubmitDecision('confirm_quote')}
-                  className="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all cursor-pointer group disabled:opacity-50"
+                {/* Option 1: Confirmar Orçamento Final */}
+                <div
+                  onClick={() => setSelectedDecision('confirm_quote')}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    selectedDecision === 'confirm_quote'
+                      ? 'border-blue-600 bg-blue-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                      <MessageSquare className="w-5 h-5" />
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        selectedDecision === 'confirm_quote'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4" />
                     </div>
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 group-hover:text-blue-700">
+                        <span className="text-xs font-bold text-slate-900">
                           Confirmar Orçamento Final
                         </span>
-                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                        <span className="text-[10px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">
                           Revisão
                         </span>
                       </div>
@@ -791,82 +796,78 @@ Podemos prosseguir com o pedido?`;
                       </p>
                     </div>
                   </div>
-                </button>
+                </div>
 
-                {/* Decision 2: Pode Imprimir! */}
+                {/* Option 2: Pode Imprimir! (Clear warning that price can be adjusted) */}
+                <div
+                  onClick={() => setSelectedDecision('direct_print')}
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    selectedDecision === 'direct_print'
+                      ? 'border-emerald-600 bg-emerald-50/50 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        selectedDecision === 'direct_print'
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <Rocket className="w-4 h-4" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900">
+                          Pode Imprimir!
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Aprovação de Produção
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                        Autorizo a entrada na fila de impressão prioritária da oficina.
+                      </p>
+
+                      {/* Warning Notice: Value is subject to technical confirmation */}
+                      <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Atenção:</strong> O valor estimado pode sofrer pequenos ajustes após a análise técnica do Maker (necessidade de suportes complexos ou requisitos de pós-processamento).
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ENVIAR PEDIDO BUTTON (REPLACED "Visualizar Proposta em PDF") */}
+              <div className="pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => handleSubmitDecision('direct_print')}
-                  className="w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/70 transition-all cursor-pointer group disabled:opacity-50"
+                  onClick={() => handleSubmitDecision(selectedDecision)}
+                  className={`w-full py-3.5 px-5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50 ${
+                    selectedDecision === 'direct_print'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
-                      <Rocket className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-emerald-900">
-                          Pode Imprimir!
-                        </span>
-                        <span className="text-[10px] font-bold text-white bg-emerald-600 px-2 py-0.5 rounded-full shadow-2xs">
-                          Aprovação Imediata
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-emerald-800/80 mt-1 leading-relaxed">
-                        Concordo com o valor e as cores. Enviar direto para a fila de produção prioritária da oficina!
-                      </p>
-                    </div>
-                  </div>
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>
+                        {selectedDecision === 'direct_print'
+                          ? 'Enviar Pedido para Produção'
+                          : 'Enviar Solicitação de Orçamento'}
+                      </span>
+                    </>
+                  )}
                 </button>
-              </div>
-
-              {/* Proposal Preview Trigger */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSubmittedQuote({
-                      quoteNumber: `MW-${Date.now().toString().slice(-6)}`,
-                      customerName: currentUser.name || 'Cliente MakerWorld',
-                      customerPhone: currentUser.phone,
-                      customerEmail: currentUser.email,
-                      date: new Date().toLocaleDateString('pt-BR'),
-                      status: 'pending_review',
-                      items: filamentSlots.map((slot, idx) => ({
-                        id: `item-${idx}`,
-                        name: `${modelData.title} (Slot ${idx + 1} - ${slot.originalType})`,
-                        materialId: slot.selectedMaterialId,
-                        printerId: selectedPrinterId || printers[0]?.id || '',
-                        weightGrams: slot.usedG,
-                        printDays: idx === 0 ? selectedProfile.printDays : 0,
-                        printHours: idx === 0 ? selectedProfile.printHours : 0,
-                        printMinutes: idx === 0 ? selectedProfile.printMinutes : 0,
-                      })),
-                      laborActivities: [
-                        { id: 'act-1', name: 'Preparação & Fatiamento MakerWorld', minutes: 10 },
-                        { id: 'act-2', name: 'Troca de Mesa & Pós-processamento', minutes: 15 },
-                      ],
-                      consumables: [],
-                      profitMarginPercent: profitMargin,
-                      taxesPercent: settings.taxesPercent || 0,
-                      cardFeePercent: settings.cardFeePercent || 0,
-                      onlinePlatformFeePercent: settings.onlinePlatformFeePercent || 0,
-                      shippingCost: 0,
-                      calculation,
-                    });
-                    setShowProposalPreview(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Visualizar Proposta em PDF</span>
-                </button>
-
-                <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Orçamento 100% Seguro</span>
-                </div>
               </div>
             </div>
 
@@ -891,13 +892,13 @@ Podemos prosseguir com o pedido?`;
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
                 {submittedQuote.clientDecision === 'direct_print'
                   ? '🚀 Pedido Enviado para Fila de Impressão!'
-                  : '📋 Solicitação de Orçamento Registrada!'}
+                  : '📋 Solicitação Registrada com Sucesso!'}
               </span>
               <h3 className="text-xl font-bold text-slate-900 mt-1">
                 {modelData?.title}
               </h3>
               <p className="text-xs text-slate-500 mt-2">
-                Código de Acompanhamento: <strong className="font-mono text-slate-800">#{submittedQuote.quoteNumber}</strong>
+                Código do Pedido: <strong className="font-mono text-slate-800">#{submittedQuote.quoteNumber}</strong>
               </p>
             </div>
 
@@ -918,7 +919,7 @@ Podemos prosseguir com o pedido?`;
                   }`}
                 >
                   {submittedQuote.clientDecision === 'direct_print'
-                    ? 'Pode Imprimir! (Aprovação Direta)'
+                    ? 'Pode Imprimir! (Aprovação de Produção)'
                     : 'Confirmar Orçamento Final'}
                 </span>
               </div>
@@ -940,38 +941,16 @@ Podemos prosseguir com o pedido?`;
                 <span>Notificar o Maker no WhatsApp com os Detalhes</span>
               </button>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowProposalPreview(true)}
-                  className="flex-1 py-2.5 px-3 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Ver Proposta</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowSuccessModal(false)}
-                  className="flex-1 py-2.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors cursor-pointer"
-                >
-                  <span>Concluir</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-2.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                <span>Concluir</span>
+              </button>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Proposal Modal Preview */}
-      {showProposalPreview && submittedQuote && (
-        <ProposalModal
-          isOpen={showProposalPreview}
-          onClose={() => setShowProposalPreview(false)}
-          quote={submittedQuote}
-          materials={materials}
-          printers={printers}
-        />
       )}
     </div>
   );

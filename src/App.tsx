@@ -273,7 +273,7 @@ export function App() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex items-center gap-3 text-sm text-slate-500 font-medium">
           <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span>Carregando plataforma 3DCost...</span>
+          <span>Carregando plataforma BagreLab...</span>
         </div>
       </div>
     );
@@ -405,10 +405,10 @@ export function App() {
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 no-print mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            <strong>3DCost</strong> • Sistema de Engenharia de Custos e Orçamentos para Impressão 3D
+            <strong>BagreLab</strong> • Sistema de Engenharia de Custos e Orçamentos para Impressão 3D
           </span>
           <span className="text-slate-400">
-            © {new Date().getFullYear()} 3DCost • Orçamentos Profissionais
+            © {new Date().getFullYear()} BagreLab • Orçamentos Profissionais
           </span>
         </div>
       </footer>

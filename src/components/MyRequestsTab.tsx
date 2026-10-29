@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SavedQuote, Material, Printer, AuthUser } from '../lib/types';
 import { formatCurrency } from '../lib/calculator';
-import { ProposalModal } from './ProposalModal';
 import {
   Package,
   Clock,
   CheckCircle2,
   Rocket,
   MessageSquare,
-  FileText,
   ExternalLink,
   Sparkles,
 } from 'lucide-react';
@@ -24,11 +22,8 @@ interface MyRequestsTabProps {
 export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
   quotes,
   currentUser,
-  materials,
-  printers,
   onOpenMakerWorld,
 }) => {
-  const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
 
   // Filter quotes belonging to this client (by email or phone)
   const clientCleanPhone = currentUser.phone ? currentUser.phone.replace(/\D/g, '') : '';
@@ -199,22 +194,18 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
 
                 {/* Actions */}
                 <div className="pt-4 flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => setSelectedQuote(q)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 cursor-pointer"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Ver Proposta Completa</span>
-                  </button>
+                  <span className="text-[11px] text-slate-400">
+                    Acompanhamento pelo Maker via WhatsApp
+                  </span>
 
                   {isMw && q.makerWorldData?.sourceUrl && (
                     <a
                       href={q.makerWorldData.sourceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline"
+                      className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-medium"
                     >
-                      <span>MakerWorld</span>
+                      <span>Ver no MakerWorld</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}
@@ -223,17 +214,6 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
             );
           })}
         </div>
-      )}
-
-      {/* Proposal Modal Preview */}
-      {selectedQuote && (
-        <ProposalModal
-          isOpen={!!selectedQuote}
-          onClose={() => setSelectedQuote(null)}
-          quote={selectedQuote}
-          materials={materials}
-          printers={printers}
-        />
       )}
     </div>
   );

@@ -83,21 +83,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Logo & Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
-              3D
-            </div>
+            <img
+              src="/bagrelab-logo.png"
+              alt="BagreLab"
+              className="w-9 h-9 rounded-xl object-cover shadow-xs border border-slate-200"
+            />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 tracking-tight">3DCost</span>
-                <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                    isMaker
-                      ? 'bg-purple-50 text-purple-700 border-purple-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}
-                >
-                  {isMaker ? '👑 Maker (Oficina)' : '👤 Portal do Cliente'}
-                </span>
+                <span className="text-base font-bold text-slate-900 tracking-tight">BagreLab</span>
               </div>
               <span className="text-xs text-slate-500 hidden sm:block">
                 {isMaker ? 'Gestão de Custos & Precificação 3D' : 'Orçamentos Automáticos de Impressão 3D'}

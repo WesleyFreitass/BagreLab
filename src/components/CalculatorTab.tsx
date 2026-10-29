@@ -30,8 +30,6 @@ import {
   Percent,
   ChevronDown,
   ChevronUp,
-  Phone,
-  Mail,
   MessageSquare,
   Users,
   UserPlus,
@@ -64,7 +62,7 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const [customerPhone, setCustomerPhone] = useState('11999998888');
   const [customerEmail, setCustomerEmail] = useState('');
   const [quoteNumber, setQuoteNumber] = useState(() => `ORC-${Date.now().toString().slice(-4)}`);
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Quick Customer Creation Modal
   const [isQuickCustomerOpen, setIsQuickCustomerOpen] = useState(false);
@@ -481,76 +479,28 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
               </select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="sm:col-span-2">
-                <label className="text-slate-600 font-semibold block mb-1">Nome do Cliente / Empresa *</label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: João Silva / Maker Tech"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-600 font-semibold block mb-1">WhatsApp (com DDD) *</label>
-                <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="11999998888"
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-600 font-semibold block mb-1">Data da Cotação</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-slate-600 font-semibold block mb-1">E-mail do Cliente (Opcional)</label>
-                <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="cliente@exemplo.com"
-                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-slate-600 font-semibold block mb-1">Código do Orçamento</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="sm:col-span-1">
+                <label className="text-slate-600 font-semibold block mb-1">Número do Pedido / Orçamento</label>
                 <input
                   type="text"
                   value={quoteNumber}
                   onChange={(e) => setQuoteNumber(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: ORC-2911"
                 />
               </div>
-            </div>
 
-            <div className="text-xs pt-1">
-              <label className="text-slate-600 font-semibold block mb-1">Observações / Detalhes Adicionais</label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ex: Cor preta, 20% infill, acabamento com primer automotivo..."
-              />
+              <div className="sm:col-span-2">
+                <label className="text-slate-600 font-semibold block mb-1">Observações / Detalhes Adicionais</label>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: Cor preta, 20% infill, acabamento com primer automotivo..."
+                />
+              </div>
             </div>
           </div>
 
