@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthUser } from '../lib/types';
 import { X, Phone, CheckCircle2 } from 'lucide-react';
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 interface GoogleAuthModalProps {
   isOpen: boolean;
@@ -18,27 +24,108 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   subtitle = 'Conecte sua conta do Google e informe seu WhatsApp para o Maker entrar em contato.',
 }) => {
   const [step, setStep] = useState<'google' | 'phone'>('google');
+  const googleBtnRef = useRef<HTMLDivElement>(null);
   
-  // Google mock/real profile state
+  // Profile state
   const [googleName, setGoogleName] = useState('Cliente');
   const [googleEmail, setGoogleEmail] = useState('');
   const [googleAvatar, setGoogleAvatar] = useState(
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'
   );
+  const [googleId, setGoogleId] = useState('');
   
   // Required WhatsApp with DDD
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
 
+  // Mount real Google Identity Services button
+  useEffect(() => {
+    if (!isOpen || step !== 'google') return;
+
+    const clientId =
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      '756102817401-do6khftagt4rf8tpa0odg9233r9v0940.apps.googleusercontent.com';
+
+    const parseJwt = (token: string) => {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        return JSON.parse(jsonPayload);
+      } catch {
+        return null;
+      }
+    };
+
+    const handleCredentialResponse = (response: any) => {
+      if (response && response.credential) {
+        const payload = parseJwt(response.credential);
+        if (payload) {
+          const finalName = payload.name || payload.given_name || 'Cliente Google';
+          const finalEmail = payload.email || '';
+          const finalAvatar = payload.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}`;
+          const finalId = payload.sub || `goog_${Date.now()}`;
+
+          setGoogleName(finalName);
+          setGoogleEmail(finalEmail);
+          setGoogleAvatar(finalAvatar);
+          setGoogleId(finalId);
+          setStep('phone');
+        }
+      }
+    };
+
+    const initGoogle = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse,
+            auto_select: false,
+          });
+
+          if (googleBtnRef.current) {
+            googleBtnRef.current.innerHTML = '';
+            window.google.accounts.id.renderButton(googleBtnRef.current, {
+              theme: 'outline',
+              size: 'large',
+              type: 'standard',
+              shape: 'rectangular',
+              text: 'signin_with',
+              logo_alignment: 'left',
+              width: 320,
+            });
+          }
+        } catch (e) {
+          console.warn('Erro ao inicializar botão oficial do Google:', e);
+        }
+      }
+    };
+
+    // Retry if script hasn't loaded yet
+    if (window.google?.accounts?.id) {
+      initGoogle();
+    } else {
+      const timer = setTimeout(initGoogle, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, step]);
+
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = (presetName?: string, presetEmail?: string) => {
-    const finalName = presetName || prompt('Nome completo para identificação no Google:') || 'Cliente Google';
+  const handleManualGoogleSignIn = (presetName?: string, presetEmail?: string) => {
+    const finalName = presetName || prompt('Nome completo para identificação:') || 'Cliente Google';
     const finalEmail = presetEmail || `${finalName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
     
     setGoogleName(finalName);
     setGoogleEmail(finalEmail);
     setGoogleAvatar(`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}`);
+    setGoogleId(`goog_${Date.now()}`);
     setStep('phone');
   };
 
@@ -58,7 +145,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
       phone: cleanPhone,
       avatarUrl: googleAvatar,
       role: 'client',
-      googleId: `goog_${Date.now()}`,
+      googleId: googleId || `goog_${Date.now()}`,
     };
 
     onSuccess(newUser);
@@ -83,18 +170,10 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
           </button>
         </div>
 
-        {/* Step 1: Google Login */}
         {step === 'google' ? (
-          <div className="space-y-4 py-2">
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Para registrar seu orçamento e salvar seu histórico de peças impressas, faça login com a sua conta Google:
-            </p>
-
-            <button
-              onClick={() => handleGoogleSignIn()}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs py-3 px-4 rounded-xl border border-slate-300 shadow-2xs transition-all cursor-pointer hover:border-slate-400"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
+          <div className="space-y-4 py-2 text-center">
+            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
+              <svg className="w-6 h-6" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -112,54 +191,47 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Continuar com o Google</span>
-            </button>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-2 text-[10px] text-slate-400 uppercase font-semibold">
-                ou acesso rápido de teste
-              </span>
-              <div className="flex-grow border-t border-slate-200"></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleGoogleSignIn('Carlos Maker', 'carlos@exemplo.com')}
-                className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-colors cursor-pointer"
-              >
-                <strong className="block text-slate-800 text-[11px]">Carlos Maker</strong>
-                <span className="text-[10px] text-slate-400 truncate block">carlos@exemplo.com</span>
-              </button>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800">Conecte-se com sua Conta Google</h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                Identificação rápida e segura para vincular suas peças e acompanhar os pedidos no BagreLab.
+              </p>
+            </div>
 
+            {/* Official Google Identity Button Mount */}
+            <div className="flex justify-center py-2 min-h-[44px]">
+              <div ref={googleBtnRef} />
+            </div>
+
+            {/* Fallback button if Google script is blocked or offline */}
+            <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => handleGoogleSignIn('Mariana Souza', 'mariana@exemplo.com')}
-                className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-colors cursor-pointer"
+                onClick={() => handleManualGoogleSignIn()}
+                className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                <strong className="block text-slate-800 text-[11px]">Mariana Souza</strong>
-                <span className="text-[10px] text-slate-400 truncate block">mariana@exemplo.com</span>
+                <span>Entrar digitando nome / e-mail manualmente</span>
               </button>
             </div>
           </div>
         ) : (
-          /* Step 2: Mandatory WhatsApp with DDD */
           <form onSubmit={handleFinish} className="space-y-4">
-            {/* User card verified from Google */}
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
               <img
                 src={googleAvatar}
                 alt={googleName}
-                className="w-10 h-10 rounded-full object-cover border border-slate-300"
+                className="w-10 h-10 rounded-full border border-slate-300 object-cover"
               />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <strong className="text-slate-900 truncate">{googleName}</strong>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                </div>
-                <span className="text-slate-500 text-[11px] truncate block">{googleEmail}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-slate-900 truncate">{googleName}</div>
+                <div className="text-[11px] text-slate-500 truncate">{googleEmail}</div>
               </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span>Google</span>
+              </span>
             </div>
 
             <div>
@@ -167,46 +239,37 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
                 WhatsApp com DDD <span className="text-rose-500">* (Obrigatório)</span>
               </label>
               <div className="relative">
-                <Phone className="w-4 h-4 text-emerald-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="tel"
-                  required
                   autoFocus
+                  required
                   value={phone}
                   onChange={(e) => {
                     setPhone(e.target.value);
-                    if (phoneError) setPhoneError('');
+                    setPhoneError('');
                   }}
-                  placeholder="Ex: 11999998888 ou 21988887777"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Ex: 11999998888 (com DDD)"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Necessário para o Maker enviar fotos da peça e confirmar a data de entrega.
-              </p>
-              {phoneError && (
-                <p className="text-[11px] font-semibold text-rose-600 mt-1">{phoneError}</p>
+              {phoneError ? (
+                <span className="text-[11px] text-rose-600 mt-1 block font-medium">{phoneError}</span>
+              ) : (
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Necessário para a oficina confirmar o modelo e enviar a proposta oficial.
+                </span>
               )}
             </div>
 
-            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setStep('google')}
-                className="px-3.5 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium text-xs cursor-pointer"
-              >
-                Voltar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
-              >
-                Concluir & Enviar Orçamento
-              </button>
-            </div>
+            <button
+              type="submit"
+              className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              Concluir Identificação e Enviar Pedido
+            </button>
           </form>
         )}
-
       </div>
     </div>
   );

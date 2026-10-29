@@ -20,9 +20,9 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script_stop: true
           script: |
-            echo "🚀 [CI/CD] Atualizando 3DCost na VPS..."
-            mkdir -p /root/3dcost
-            cd /root/3dcost
+            echo "🚀 [CI/CD] Atualizando BagreLab na VPS..."
+            mkdir -p /root/bagrelab
+            cd /root/bagrelab
             if [ -d .git ]; then
               git clean -fd
               git fetch origin main
@@ -31,4 +31,4 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git .
             fi
             docker compose up -d --build
-            echo "✅ [CI/CD] Deploy do 3DCost concluído com sucesso na porta 3070!"
+            echo "✅ [CI/CD] Deploy do BagreLab concluído com sucesso na porta 3070!"

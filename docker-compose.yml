@@ -1,17 +1,19 @@
 version: '3.8'
 
 services:
-  3dcost-app:
+  bagrelab-app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: 3dcost-app
+    container_name: bagrelab-app
     restart: always
     ports:
       - "${HOST_PORT:-3070}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/3dcost}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/bagrelab}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     extra_hosts:
       - "host.docker.internal:host-gateway"
