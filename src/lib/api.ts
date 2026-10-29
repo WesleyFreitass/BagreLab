@@ -5,6 +5,7 @@ import {
   WorkshopSettings,
   SavedQuote,
   MakerWorldModelData,
+  AuthUser,
 } from './types';
 import {
   initialCustomers,
@@ -412,6 +413,49 @@ export async function deleteQuoteApi(id: string): Promise<void> {
   const localList = await fetchQuotes();
   const filtered = localList.filter((q) => q.id !== id);
   localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(filtered));
+}
+
+export async function updateQuoteStatusApi(id: string, status: SavedQuote['status']): Promise<void> {
+  try {
+    await fetch(`/api/quotes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+  } catch {
+    // offline
+  }
+
+  const localList = await fetchQuotes();
+  const idx = localList.findIndex((q) => q.id === id || q._id === id);
+  if (idx >= 0) {
+    localList[idx].status = status;
+    localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(localList));
+  }
+}
+
+// --- AUTENTICAÇÃO & CONTROLE DE ACESSO (MAKER vs CLIENTE) ---
+const AUTH_STORAGE_KEY = '3dcost_auth_user';
+
+export const defaultMakerUser: AuthUser = {
+  id: 'maker-1',
+  name: 'Wesley Freitas (Maker)',
+  email: 'wesley@oficina3d.com',
+  phone: '11999998888',
+  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+  role: 'maker',
+};
+
+export function getStoredAuthUser(): AuthUser {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return defaultMakerUser;
+}
+
+export function saveStoredAuthUser(user: AuthUser): void {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
 }
 
 // --- CLIENTES (CADASTRO & HISTÓRICO) ---

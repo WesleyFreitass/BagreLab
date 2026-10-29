@@ -32,12 +32,37 @@ export interface MakerWorldModelData {
   sourceUrl: string;
 }
 
+export interface MakerWorldFilamentSlot {
+  slotIndex: number;
+  originalType: string;
+  originalColor: string;
+  usedG: number;
+  usedM?: number;
+  selectedMaterialId: string;
+  customColorName?: string;
+  customColorHex?: string;
+}
+
+export type UserRole = 'maker' | 'client';
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string; // WhatsApp com DDD
+  avatarUrl?: string;
+  role: UserRole;
+  googleId?: string;
+}
+
 export interface Customer {
   id: string;
   _id?: string;
   name: string;
   phone: string; // WhatsApp com DDD
   email?: string;
+  googleId?: string;
+  avatarUrl?: string;
   document?: string; // CPF ou CNPJ
   city?: string;
   state?: string;
@@ -170,7 +195,16 @@ export interface SavedQuote {
   customerEmail?: string;
   customerContact?: string;
   date: string;
-  status: 'draft' | 'sent' | 'approved' | 'in_production' | 'completed';
+  status: 'draft' | 'sent' | 'pending_review' | 'approved' | 'in_production' | 'completed' | 'cancelled';
+  clientDecision?: 'confirm_quote' | 'direct_print';
+  makerWorldData?: {
+    designId: number;
+    modelTitle: string;
+    profileTitle: string;
+    sourceUrl: string;
+    coverUrl: string;
+    filaments: MakerWorldFilamentSlot[];
+  };
   items: QuoteItem[];
   laborActivities: LaborActivity[];
   consumables: ConsumableItem[];

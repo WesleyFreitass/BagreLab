@@ -6,6 +6,8 @@ const customerSchema = new mongoose.Schema(
     phone: { type: String, required: true, trim: true }, // WhatsApp com DDD (ex: 11999998888)
     email: { type: String, trim: true, default: '' },
     document: { type: String, trim: true, default: '' }, // CPF ou CNPJ
+    googleId: { type: String, default: '' },
+    avatarUrl: { type: String, default: '' },
     city: { type: String, trim: true, default: '' },
     state: { type: String, trim: true, default: '' },
     address: { type: String, trim: true, default: '' },

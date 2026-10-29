@@ -11,8 +11,32 @@ const quoteSchema = new mongoose.Schema(
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
     status: {
       type: String,
-      enum: ['draft', 'sent', 'approved', 'in_production', 'completed'],
+      enum: ['draft', 'sent', 'pending_review', 'approved', 'in_production', 'completed', 'cancelled'],
       default: 'draft',
+    },
+    clientDecision: {
+      type: String,
+      enum: ['confirm_quote', 'direct_print', null],
+      default: null,
+    },
+    makerWorldData: {
+      designId: Number,
+      modelTitle: String,
+      profileTitle: String,
+      sourceUrl: String,
+      coverUrl: String,
+      filaments: [
+        {
+          slotIndex: Number,
+          originalType: String,
+          originalColor: String,
+          usedG: Number,
+          usedM: Number,
+          selectedMaterialId: String,
+          customColorName: String,
+          customColorHex: String,
+        },
+      ],
     },
     items: [
       {

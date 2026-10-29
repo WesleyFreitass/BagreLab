@@ -6,6 +6,7 @@ import {
   WorkshopSettings,
   SavedQuote,
   QuoteItem,
+  AuthUser,
 } from './lib/types';
 import {
   fetchCustomers,
@@ -22,21 +23,30 @@ import {
   fetchQuotes,
   saveQuoteApi,
   deleteQuoteApi,
+  updateQuoteStatusApi,
   checkBackendHealth,
+  getStoredAuthUser,
+  saveStoredAuthUser,
+  defaultMakerUser,
 } from './lib/api';
 import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
 import { Navbar, TabType } from './components/Navbar';
 import { CalculatorTab } from './components/CalculatorTab';
 import { MakerWorldTab } from './components/MakerWorldTab';
+import { ClientRequestsTab } from './components/ClientRequestsTab';
+import { MyRequestsTab } from './components/MyRequestsTab';
 import { CustomersTab } from './components/CustomersTab';
 import { PrintersTab } from './components/PrintersTab';
 import { MaterialsTab } from './components/MaterialsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { QuotesTab } from './components/QuotesTab';
+import { GoogleAuthModal } from './components/GoogleAuthModal';
 
 export function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser>(getStoredAuthUser);
   const [activeTab, setActiveTab] = useState<TabType>('calculator');
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [printers, setPrinters] = useState<Printer[]>(initialPrinters);
@@ -74,6 +84,28 @@ export function App() {
     }
     init();
   }, []);
+
+  // Update stored user
+  const handleUpdateCurrentUser = (user: AuthUser) => {
+    setCurrentUser(user);
+    saveStoredAuthUser(user);
+  };
+
+  // Toggle Role between Maker and Client
+  const handleToggleRole = () => {
+    const nextRole = currentUser.role === 'maker' ? 'client' : 'maker';
+    const updatedUser: AuthUser = {
+      ...currentUser,
+      role: nextRole,
+    };
+    handleUpdateCurrentUser(updatedUser);
+
+    if (nextRole === 'client') {
+      setActiveTab('makerworld');
+    } else {
+      setActiveTab('client_requests');
+    }
+  };
 
   // Customer handlers
   const handleSaveCustomer = async (customer: Partial<Customer>): Promise<Customer> => {
@@ -134,10 +166,10 @@ export function App() {
   };
 
   // Handlers for Quotes
-  const handleSaveQuote = async (quote: Partial<SavedQuote>) => {
+  const handleSaveQuote = async (quote: Partial<SavedQuote>): Promise<SavedQuote> => {
     const saved = await saveQuoteApi(quote);
     setQuotes((prev) => {
-      const idx = prev.findIndex((q) => q.id === saved.id);
+      const idx = prev.findIndex((q) => q.id === saved.id || (saved._id && q._id === saved._id));
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = saved;
@@ -145,6 +177,7 @@ export function App() {
       }
       return [saved, ...prev];
     });
+    return saved;
   };
 
   const handleDeleteQuote = async (id: string) => {
@@ -152,10 +185,88 @@ export function App() {
     setQuotes((prev) => prev.filter((q) => q.id !== id && q._id !== id));
   };
 
+  const handleUpdateQuoteStatus = async (id: string, status: SavedQuote['status']) => {
+    await updateQuoteStatusApi(id, status);
+    setQuotes((prev) =>
+      prev.map((q) => (q.id === id || q._id === id ? { ...q, status } : q))
+    );
+  };
+
+  // Handler for Client Submitting Quote Request from MakerWorld
+  const handleSubmitClientQuote = async (
+    quoteData: Partial<SavedQuote>,
+    decision: 'confirm_quote' | 'direct_print'
+  ): Promise<SavedQuote> => {
+    // 1. Ensure client is saved in customers collection
+    if (currentUser.name && currentUser.phone) {
+      await handleSaveCustomer({
+        name: currentUser.name,
+        phone: currentUser.phone,
+        email: currentUser.email,
+        googleId: currentUser.googleId,
+        avatarUrl: currentUser.avatarUrl,
+        notes: `Cliente cadastrado via login com Google / Pedido MakerWorld`,
+      });
+    }
+
+    // 2. Save quote
+    const saved = await handleSaveQuote({
+      ...quoteData,
+      customerName: currentUser.name || quoteData.customerName || 'Cliente',
+      customerPhone: currentUser.phone || quoteData.customerPhone || '',
+      customerEmail: currentUser.email || quoteData.customerEmail || '',
+      clientDecision: decision,
+      status: decision === 'direct_print' ? 'approved' : 'pending_review',
+    });
+
+    return saved;
+  };
+
   const handleImportFromMakerWorld = (data: { modelTitle: string; items: QuoteItem[]; notes?: string }) => {
     setImportedQuoteData({ items: data.items, notes: data.notes });
     setActiveTab('calculator');
   };
+
+  // Handlers for Auth
+  const handleAuthSuccess = async (authUser: AuthUser) => {
+    handleUpdateCurrentUser(authUser);
+    setIsAuthModalOpen(false);
+
+    // Automatically save or update customer record in database
+    if (authUser.name && authUser.phone) {
+      await handleSaveCustomer({
+        name: authUser.name,
+        email: authUser.email,
+        phone: authUser.phone,
+        googleId: authUser.googleId,
+        avatarUrl: authUser.avatarUrl,
+        notes: `Cadastrado automaticamente via autenticação Google`,
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    const isMaker = currentUser.role === 'maker';
+    if (isMaker) {
+      // Maker remains maker default
+      handleUpdateCurrentUser(defaultMakerUser);
+    } else {
+      // Reset client to guest
+      const guestClient: AuthUser = {
+        id: `client-${Date.now()}`,
+        name: '',
+        email: '',
+        phone: '',
+        role: 'client',
+      };
+      handleUpdateCurrentUser(guestClient);
+    }
+  };
+
+  // Count pending client requests for Maker inbox badge
+  const pendingRequestsCount = quotes.filter(
+    (q) => q.status === 'pending_review' || (q.clientDecision && q.status !== 'completed' && q.status !== 'cancelled')
+  ).length;
 
   if (isLoading) {
     return (
@@ -174,9 +285,37 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         isBackendConnected={isBackendConnected}
+        currentUser={currentUser}
+        pendingRequestsCount={pendingRequestsCount}
+        onToggleRole={handleToggleRole}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* MAKER INBOX: SOLICITAÇÕES DE CLIENTES */}
+        {activeTab === 'client_requests' && (
+          <ClientRequestsTab
+            quotes={quotes}
+            materials={materials}
+            printers={printers}
+            onUpdateStatus={handleUpdateQuoteStatus}
+            onDeleteQuote={handleDeleteQuote}
+          />
+        )}
+
+        {/* CLIENT PORTAL: MINHAS SOLICITAÇÕES */}
+        {activeTab === 'my_requests' && (
+          <MyRequestsTab
+            quotes={quotes}
+            currentUser={currentUser}
+            materials={materials}
+            printers={printers}
+            onOpenMakerWorld={() => setActiveTab('makerworld')}
+          />
+        )}
+
+        {/* CALCULADORA PRINCIPAL */}
         {activeTab === 'calculator' && (
           <CalculatorTab
             printers={printers}
@@ -184,20 +323,27 @@ export function App() {
             settings={settings}
             customers={customers}
             importedData={importedQuoteData}
-            onSaveQuote={handleSaveQuote}
+            onSaveQuote={async (quote) => {
+              await handleSaveQuote(quote);
+            }}
             onQuickSaveCustomer={handleSaveCustomer}
           />
         )}
 
+        {/* ORÇADOR AUTOMÁTICO MAKERWORLD */}
         {activeTab === 'makerworld' && (
           <MakerWorldTab
             printers={printers}
             materials={materials}
             settings={settings}
+            currentUser={currentUser}
+            onRequireAuth={() => setIsAuthModalOpen(true)}
+            onSubmitClientQuote={handleSubmitClientQuote}
             onImportToCalculator={handleImportFromMakerWorld}
           />
         )}
 
+        {/* GESTÃO DE CLIENTES */}
         {activeTab === 'customers' && (
           <CustomersTab
             customers={customers}
@@ -210,6 +356,7 @@ export function App() {
           />
         )}
 
+        {/* IMPRESSORAS */}
         {activeTab === 'printers' && (
           <PrintersTab
             printers={printers}
@@ -218,6 +365,7 @@ export function App() {
           />
         )}
 
+        {/* FILAMENTOS & MATERIAIS */}
         {activeTab === 'materials' && (
           <MaterialsTab
             materials={materials}
@@ -226,6 +374,7 @@ export function App() {
           />
         )}
 
+        {/* CONFIGURAÇÕES DA OFICINA */}
         {activeTab === 'settings' && (
           <SettingsTab
             settings={settings}
@@ -233,6 +382,7 @@ export function App() {
           />
         )}
 
+        {/* HISTÓRICO DE ORÇAMENTOS */}
         {activeTab === 'quotes' && (
           <QuotesTab
             quotes={quotes}
@@ -243,10 +393,19 @@ export function App() {
         )}
       </main>
 
+      {/* Google Auth & WhatsApp Modal */}
+      <GoogleAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+        title="Identifique-se com sua Conta Google"
+        subtitle="Informe seu WhatsApp com DDD para o Maker poder entrar em contato e enviar a proposta oficial."
+      />
+
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 no-print mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            <strong>3DCost</strong> • Sistema de Engenharia de Custos e Formação de Preço para Impressão 3D
+            <strong>3DCost</strong> • Sistema de Engenharia de Custos e Orçamentos para Impressão 3D
           </span>
           <span className="text-slate-400">
             © {new Date().getFullYear()} 3DCost • Orçamentos Profissionais

@@ -1,42 +1,48 @@
 import React from 'react';
 import { X, Printer as PrintIcon, Check, Copy, MessageSquare } from 'lucide-react';
-import { QuoteCalculationResult, QuoteItem, Material, Printer } from '../lib/types';
+import { QuoteCalculationResult, QuoteItem, Material, Printer, SavedQuote } from '../lib/types';
 import { formatCurrency, formatHours, formatWhatsAppProposalMessage } from '../lib/calculator';
 import { sendWhatsAppMessageApi } from '../lib/api';
 
 interface ProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  customerName: string;
+  quote?: SavedQuote;
+  customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
-  quoteNumber: string;
-  date: string;
-  items: QuoteItem[];
+  quoteNumber?: string;
+  date?: string;
+  items?: QuoteItem[];
   materials: Material[];
   printers: Printer[];
-  calculation: QuoteCalculationResult;
+  calculation?: QuoteCalculationResult;
   notes?: string;
 }
 
 export const ProposalModal: React.FC<ProposalModalProps> = ({
   isOpen,
   onClose,
-  customerName,
-  customerPhone,
-  customerEmail,
-  quoteNumber,
-  date,
-  items,
+  quote,
   materials,
   printers,
-  calculation,
-  notes,
+  ...props
 }) => {
   const [copied, setCopied] = React.useState(false);
   const [sentZap, setSentZap] = React.useState(false);
 
   if (!isOpen) return null;
+
+  const customerName = quote?.customerName || props.customerName || 'Cliente';
+  const customerPhone = quote?.customerPhone || props.customerPhone;
+  const customerEmail = quote?.customerEmail || props.customerEmail;
+  const quoteNumber = quote?.quoteNumber || props.quoteNumber || 'ORC-001';
+  const date = quote?.date || props.date || new Date().toLocaleDateString('pt-BR');
+  const items = quote?.items || props.items || [];
+  const calculation = quote?.calculation || props.calculation!;
+  const notes = quote?.notes || props.notes;
+
+  if (!calculation) return null;
 
   const handlePrint = () => {
     window.print();
