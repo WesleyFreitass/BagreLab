@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SavedQuote, Material, Printer } from '../lib/types';
 import { formatCurrency } from '../lib/calculator';
 import { ProposalModal } from './ProposalModal';
-import { FileText, Copy, Check, Trash2, Eye, Search, Download } from 'lucide-react';
+import { FileText, Copy, Check, Trash2, Eye, Search, Download, Lock } from 'lucide-react';
 
 interface QuotesTabProps {
   quotes: SavedQuote[];
@@ -39,8 +39,8 @@ ${quote.items
   })
   .join('\n')}
 
-💰 *Total à Vista (PIX):* ${formatCurrency(quote.calculation.salePriceCash)}
-${quote.calculation.shippingCost > 0 ? `📦 *Frete:* ${formatCurrency(quote.calculation.shippingCost)}\n*Total com Entrega:* ${formatCurrency(quote.calculation.finalPriceWithShipping)}` : ''}
+*Total à Vista (PIX):* ${formatCurrency(quote.calculation.salePriceCash)}
+${quote.calculation.shippingCost > 0 ? `*Frete:* ${formatCurrency(quote.calculation.shippingCost)}\n*Total com Entrega:* ${formatCurrency(quote.calculation.finalPriceWithShipping)}` : ''}
 
 Prazo de produção: 1 a 2 dias úteis.`;
 
@@ -172,13 +172,26 @@ Prazo de produção: 1 a 2 dias úteis.`;
                           >
                             {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                           </button>
-                          <button
-                            onClick={() => onDeleteQuote(id)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                            title="Excluir Orçamento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {q.status === 'in_production' || q.status === 'completed' ? (
+                            <span
+                              className="p-1.5 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center justify-center"
+                              title="Impressão já iniciada ou concluída na oficina (não pode ser excluído)"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-slate-300" />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Deseja realmente excluir o orçamento #${q.quoteNumber}?`)) {
+                                  onDeleteQuote(id);
+                                }
+                              }}
+                              className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Excluir Orçamento (ainda não iniciado na oficina)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -11,6 +11,8 @@ import {
   Wrench,
   CreditCard,
   Layers,
+  Trash2,
+  Lock,
 } from 'lucide-react';
 
 interface MyRequestsTabProps {
@@ -19,12 +21,14 @@ interface MyRequestsTabProps {
   materials: Material[];
   printers: Printer[];
   onOpenMakerWorld: () => void;
+  onDeleteQuote?: (id: string) => Promise<void>;
 }
 
 export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
   quotes,
   currentUser,
   onOpenMakerWorld,
+  onDeleteQuote,
 }) => {
   // Filter quotes belonging to this client (by email or phone)
   const clientCleanPhone = currentUser.phone ? currentUser.phone.replace(/\D/g, '') : '';
@@ -44,6 +48,19 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
 
   const countPending = myQuotes.filter((q) => q.status !== 'cancelled' && q.paymentStatus !== 'paid').length;
   const countPaid = myQuotes.filter((q) => q.paymentStatus === 'paid').length;
+
+  const handleDeleteQuote = async (q: SavedQuote) => {
+    if (q.status === 'in_production' || q.status === 'completed') {
+      alert('Não é possível excluir pedidos que já iniciaram a impressão na oficina.');
+      return;
+    }
+    const qId = q.id || q._id;
+    if (!qId || !onDeleteQuote) return;
+    const title = q.makerWorldData?.modelTitle || q.customerName || 'este pedido';
+    if (window.confirm(`Deseja realmente cancelar e excluir o pedido #${q.quoteNumber} (${title})?`)) {
+      await onDeleteQuote(qId);
+    }
+  };
 
   const getStatusBadge = (status: SavedQuote['status'], decision?: string, isRevised?: boolean) => {
     if (isRevised) {
@@ -309,42 +326,65 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="pt-4 flex items-center justify-between gap-2 flex-wrap">
-                  {q.isRevised ? (
-                    <button
-                      onClick={() => {
-                        const targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
-                          `Olá Wesley! Vi a atualização do orçamento #${q.quoteNumber} (Peça: ${
-                            q.makerWorldData?.modelTitle || 'Impressão 3D'
-                          }) para ${formatCurrency(
-                            q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0
-                          )}. Podemos prosseguir!`
-                        )}`;
-                        window.open(targetUrl, '_blank');
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>Falar com o Maker no WhatsApp</span>
-                    </button>
-                  ) : (
-                    <span className="text-[11px] text-slate-400">
-                      Aguardando conferência técnica pelo Maker
-                    </span>
-                  )}
+                {/* Actions & Delete Control */}
+                <div className="pt-4 flex items-center justify-between gap-3 flex-wrap border-t border-slate-100 mt-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {q.isRevised ? (
+                      <button
+                        onClick={() => {
+                          const targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
+                            `Olá Wesley! Vi a atualização do orçamento #${q.quoteNumber} (Peça: ${
+                              q.makerWorldData?.modelTitle || 'Impressão 3D'
+                            }) para ${formatCurrency(
+                              q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0
+                            )}. Podemos prosseguir!`
+                          )}`;
+                          window.open(targetUrl, '_blank');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Falar com o Maker no WhatsApp</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">
+                        Aguardando conferência técnica pelo Maker
+                      </span>
+                    )}
 
-                  {isMw && q.makerWorldData?.sourceUrl && (
-                    <a
-                      href={q.makerWorldData.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-medium"
-                    >
-                      <span>Ver no MakerWorld</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                    {isMw && q.makerWorldData?.sourceUrl && (
+                      <a
+                        href={q.makerWorldData.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:underline font-medium ml-1"
+                      >
+                        <span>Ver no MakerWorld</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {q.status !== 'in_production' && q.status !== 'completed' ? (
+                      <button
+                        onClick={() => handleDeleteQuote(q)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 text-xs font-semibold transition-colors cursor-pointer"
+                        title="Excluir este pedido antes de iniciar a impressão na oficina"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Excluir Pedido</span>
+                      </button>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-500 text-[11px] font-medium border border-slate-200"
+                        title="Este item já começou a ser impresso na oficina ou foi concluído e não pode ser cancelado."
+                      >
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        <span>{q.status === 'in_production' ? 'Impressão já iniciada' : 'Pedido concluído'}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

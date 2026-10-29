@@ -415,16 +415,16 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
 
     const decisionText =
       submittedQuote.clientDecision === 'direct_print'
-        ? '🚀 *PODE IMPRIMIR!* (Aprovação de Produção)'
-        : '📋 *CONFIRMAR ORÇAMENTO FINAL* (Revisar Detalhes)';
+        ? '*PODE IMPRIMIR!* (Aprovação Direta de Produção)'
+        : '*CONFIRMAR ORÇAMENTO FINAL* (Revisar Detalhes com o Maker)';
 
     const msg = `Olá! Acabei de enviar um pedido no *BagreLab* referente ao modelo do MakerWorld:
 
-📦 *Peça:* ${modelData.title}
-🔖 *Código:* #${submittedQuote.quoteNumber}
-🎯 *Minha Decisão:* ${decisionText}
-💰 *Valor Estimado:* ${formatCurrency(calculation.salePriceCash)}
-🎨 *Materiais Selecionados:*
+*Peça:* ${modelData.title}
+*Código:* #${submittedQuote.quoteNumber}
+*Minha Decisão:* ${decisionText}
+*Valor Estimado:* ${formatCurrency(calculation.salePriceCash)}
+*Materiais Selecionados:*
 ${filamentSlots
   .map((s, i) => {
     const mat = materials.find((m) => m.id === s.selectedMaterialId);
@@ -434,8 +434,8 @@ ${filamentSlots
   })
   .join('\n')}
 
-👤 *Meu Nome:* ${currentUser.name}
-📱 *Meu WhatsApp:* ${currentUser.phone}
+*Meu Nome:* ${currentUser.name}
+*Meu WhatsApp:* ${currentUser.phone}
 
 Podemos prosseguir com o pedido?`;
 

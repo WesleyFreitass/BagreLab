@@ -361,6 +361,7 @@ export function App() {
             materials={materials}
             printers={printers}
             onOpenMakerWorld={() => setActiveTab('makerworld')}
+            onDeleteQuote={handleDeleteQuote}
           />
         )}
 

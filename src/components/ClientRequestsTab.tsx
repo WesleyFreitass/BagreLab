@@ -21,6 +21,8 @@ import {
   DollarSign,
   Package,
   Layers,
+  Lock,
+  Pause,
 } from 'lucide-react';
 
 interface ClientRequestsTabProps {
@@ -646,14 +648,26 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                       </button>
                     )}
 
-                    <button
-                      onClick={() => onUpdateStatus(qId, 'in_production')}
-                      disabled={quote.status === 'in_production'}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <Play className="w-3 h-3 text-amber-700" />
-                      <span>Em Produção</span>
-                    </button>
+                    {quote.status === 'in_production' ? (
+                      <button
+                        onClick={() => onUpdateStatus(qId, 'pending_review')}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+                        title="Pausar produção e retornar à fila"
+                      >
+                        <Pause className="w-3 h-3 text-slate-600" />
+                        <span>Pausar (Voltar Fila)</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onUpdateStatus(qId, 'in_production')}
+                        disabled={quote.status === 'completed'}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                        title="Iniciar impressão física na oficina"
+                      >
+                        <Play className="w-3 h-3 text-amber-700" />
+                        <span>Em Produção</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => onUpdateStatus(qId, 'completed')}
@@ -674,17 +688,30 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                       <span>Ver Proposta A4</span>
                     </button>
 
-                    <button
-                      onClick={() => {
-                        if (confirm(`Deseja excluir a solicitação #${quote.quoteNumber}?`)) {
-                          onDeleteQuote(qId);
+                    {quote.status === 'in_production' || quote.status === 'completed' ? (
+                      <span
+                        className="p-2 rounded-xl text-slate-300 flex items-center justify-center cursor-not-allowed"
+                        title={
+                          quote.status === 'in_production'
+                            ? 'Impressão já iniciada na oficina (pause para a fila se desejar excluir)'
+                            : 'Item concluído na oficina (não pode ser excluído)'
                         }
-                      }}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Excluir Solicitação"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      >
+                        <Lock className="w-4 h-4 text-slate-300" />
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Deseja excluir a solicitação #${quote.quoteNumber}?`)) {
+                            onDeleteQuote(qId);
+                          }
+                        }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Excluir Solicitação (ainda não iniciada na oficina)"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
