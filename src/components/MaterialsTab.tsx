@@ -1,7 +1,22 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Material } from '../lib/types';
-import { formatCurrency } from '../lib/calculator';
-import { Plus, Trash2, Edit2, X, Layers } from 'lucide-react';
+import { formatCurrency, formatColorLabel } from '../lib/calculator';
+import { Plus, Trash2, Edit2, X, Layers, Palette } from 'lucide-react';
+
+const PRESET_COLORS = [
+  { name: 'Vermelho', hex: '#ef4444' },
+  { name: 'Verde', hex: '#10b981' },
+  { name: 'Azul', hex: '#3b82f6' },
+  { name: 'Branco', hex: '#f8fafc' },
+  { name: 'Laranja', hex: '#f97316' },
+  { name: 'Rosa', hex: '#ec4899' },
+  { name: 'Roxo', hex: '#8b5cf6' },
+  { name: 'Bege', hex: '#d4b996' },
+  { name: 'Dourado', hex: '#eab308' },
+  { name: 'Preto', hex: '#0f172a' },
+  { name: 'Cinza', hex: '#64748b' },
+  { name: 'Amarelo', hex: '#facc15' },
+];
 
 interface MaterialsTabProps {
   materials: Material[];
@@ -20,11 +35,12 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
   const handleOpenAdd = () => {
     setEditingMaterial({
       name: '',
-      brand: '',
-      costPerSpool: 120,
+      brand: 'Volt',
+      costPerSpool: 119,
       weightSpoolKg: 1,
       type: 'PLA',
-      color: '#3b82f6',
+      color: '#ef4444',
+      colorName: 'Vermelho',
     });
     setIsModalOpen(true);
   };
@@ -73,6 +89,7 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
               <tr>
                 <th className="py-3 px-4">Material / Marca</th>
+                <th className="py-3 px-4">Cor</th>
                 <th className="py-3 px-4">Tipo</th>
                 <th className="py-3 px-4 text-right">Preço por Rolo</th>
                 <th className="py-3 px-4 text-right">Peso do Rolo</th>
@@ -85,16 +102,22 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
               {materials.map((mat) => {
                 const costPerKg = mat.weightSpoolKg > 0 ? mat.costPerSpool / mat.weightSpoolKg : 0;
                 const costPerGram = costPerKg / 1000;
+                const colorLabel = formatColorLabel(mat.color, mat.colorName);
                 return (
                   <tr key={mat.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
-                      <div
-                        className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0"
-                        style={{ backgroundColor: mat.color || '#3b82f6' }}
-                      />
+                    <td className="py-3.5 px-4 font-semibold text-slate-900">
                       <div>
                         <span className="block">{mat.name}</span>
                         {mat.brand && <span className="text-[11px] text-slate-400 font-normal">{mat.brand}</span>}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="inline-flex items-center gap-2 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                        <div
+                          className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs shrink-0"
+                          style={{ backgroundColor: mat.color || '#3b82f6' }}
+                        />
+                        <span className="text-xs font-medium text-slate-800">{colorLabel || 'Cor padrão'}</span>
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
@@ -196,6 +219,87 @@ export const MaterialsTab: React.FC<MaterialsTabProps> = ({
                     <option value="Resina">Resina UV</option>
                     <option value="Nylon">Nylon / Poliamida</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Color Selection & Swatches */}
+              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-800 font-bold flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Cor do Filamento</span>
+                  </label>
+                  <span className="text-[11px] font-medium text-slate-500">
+                    {editingMaterial.colorName || formatColorLabel(editingMaterial.color)}
+                  </span>
+                </div>
+
+                {/* Preset swatches */}
+                <div className="grid grid-cols-6 gap-1.5 pt-1">
+                  {PRESET_COLORS.map((pc) => {
+                    const isSelected =
+                      (editingMaterial.color && editingMaterial.color.toLowerCase() === pc.hex.toLowerCase()) ||
+                      (editingMaterial.colorName && editingMaterial.colorName.toLowerCase() === pc.name.toLowerCase());
+                    return (
+                      <button
+                        type="button"
+                        key={pc.name}
+                        onClick={() => {
+                          setEditingMaterial({
+                            ...editingMaterial,
+                            color: pc.hex,
+                            colorName: pc.name,
+                          });
+                        }}
+                        title={pc.name}
+                        className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/80 shadow-2xs ring-1 ring-blue-500'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <div
+                          className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs"
+                          style={{ backgroundColor: pc.hex }}
+                        />
+                        <span className="text-[9px] text-slate-700 truncate max-w-full font-medium">
+                          {pc.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Color Input & Color Name Input */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+                  <div>
+                    <label className="text-[10px] text-slate-600 font-semibold block mb-0.5">Nome da Cor</label>
+                    <input
+                      type="text"
+                      value={editingMaterial.colorName || ''}
+                      onChange={(e) => setEditingMaterial({ ...editingMaterial, colorName: e.target.value })}
+                      placeholder="Ex: Vermelho, Preto..."
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-600 font-semibold block mb-0.5">Seletor Hex</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={editingMaterial.color?.startsWith('#') ? editingMaterial.color : '#ef4444'}
+                        onChange={(e) => setEditingMaterial({ ...editingMaterial, color: e.target.value })}
+                        className="w-8 h-8 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={editingMaterial.color || ''}
+                        onChange={(e) => setEditingMaterial({ ...editingMaterial, color: e.target.value })}
+                        placeholder="#ef4444"
+                        className="flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

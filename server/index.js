@@ -27,7 +27,7 @@ app.use('/api', apiRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    service: '3DCost Fullstack API',
+    service: 'BagreLab API',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
@@ -62,44 +62,20 @@ async function seedDefaultData() {
 
     const materialsCount = await MaterialModel.countDocuments();
     if (materialsCount === 0) {
-      console.log('🌱 Populando materiais padrão da planilha...');
+      console.log('🌱 Populando 12 filamentos oficiais BagreLab Volt...');
       await MaterialModel.insertMany([
-        {
-          name: 'PLA Caro',
-          brand: 'Premium',
-          costPerSpool: 135,
-          weightSpoolKg: 1,
-          costPerKg: 135,
-          type: 'PLA',
-          color: '#3b82f6',
-        },
-        {
-          name: 'PLA Voolt',
-          brand: 'Voolt3D',
-          costPerSpool: 105,
-          weightSpoolKg: 1,
-          costPerKg: 105,
-          type: 'PLA',
-          color: '#10b981',
-        },
-        {
-          name: 'PETG Benser',
-          brand: 'Benser',
-          costPerSpool: 119,
-          weightSpoolKg: 1,
-          costPerKg: 119,
-          type: 'PETG',
-          color: '#f59e0b',
-        },
-        {
-          name: 'ABS Genérico',
-          brand: 'Genérico',
-          costPerSpool: 90,
-          weightSpoolKg: 1,
-          costPerKg: 90,
-          type: 'ABS',
-          color: '#8b5cf6',
-        },
+        { name: 'PLA - Volt - Vermelho', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#ef4444' },
+        { name: 'PLA - Volt - Verde', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#10b981' },
+        { name: 'PLA - Volt - Azul', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#3b82f6' },
+        { name: 'PLA - Volt - Branco', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#f8fafc' },
+        { name: 'PLA - Volt - Laranja', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#f97316' },
+        { name: 'PLA - Volt - Rosa', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#ec4899' },
+        { name: 'PLA - Volt - Roxo', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#8b5cf6' },
+        { name: 'PLA - Volt - Bege', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#d4b996' },
+        { name: 'PLA - Volt - Dourado', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#eab308' },
+        { name: 'PLA - Volt - Preto', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PLA', color: '#0f172a' },
+        { name: 'Petg - Volt - Cinza', brand: 'Volt', costPerSpool: 119, weightSpoolKg: 1, costPerKg: 119, type: 'PETG', color: '#64748b' },
+        { name: 'ABS - Volt - Preto', brand: 'Volt', costPerSpool: 70, weightSpoolKg: 1, costPerKg: 70, type: 'ABS', color: '#020617' },
       ]);
     }
 

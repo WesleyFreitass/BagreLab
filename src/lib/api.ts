@@ -31,7 +31,7 @@ export function getIsBackendOnline(): boolean {
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
-    const res = await fetch('/api/health', { signal: AbortSignal.timeout(1500) });
+    const res = await fetch('/api/health', { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       isBackendOnline = true;
       return true;
@@ -437,11 +437,26 @@ export async function updateQuoteStatusApi(id: string, status: SavedQuote['statu
 // --- AUTENTICAÇÃO & CONTROLE DE ACESSO (MAKER vs CLIENTE) ---
 const AUTH_STORAGE_KEY = '3dcost_auth_user';
 
+export const MAKER_EMAIL = 'wesleysirica@gmail.com';
+
+export function isUserMaker(email?: string): boolean {
+  if (!email) return false;
+  return email.trim().toLowerCase() === MAKER_EMAIL.toLowerCase();
+}
+
+export const guestUser: AuthUser = {
+  id: '',
+  name: 'Visitante',
+  email: '',
+  phone: '',
+  role: 'client',
+};
+
 export const defaultMakerUser: AuthUser = {
-  id: 'maker-1',
+  id: 'maker-wesley',
   name: 'Wesley Freitas (Maker)',
-  email: 'wesley@oficina3d.com',
-  phone: '11999998888',
+  email: 'wesleysirica@gmail.com',
+  phone: '',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
   role: 'maker',
 };
@@ -449,12 +464,20 @@ export const defaultMakerUser: AuthUser = {
 export function getStoredAuthUser(): AuthUser {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.email) {
+        parsed.role = isUserMaker(parsed.email) ? 'maker' : 'client';
+        return parsed;
+      }
+    }
   } catch {}
-  return defaultMakerUser;
+  return guestUser;
 }
 
 export function saveStoredAuthUser(user: AuthUser): void {
+  // Always strictly enforce role based on email
+  user.role = isUserMaker(user.email) ? 'maker' : 'client';
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
 }
 

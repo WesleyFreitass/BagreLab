@@ -27,10 +27,11 @@ import {
   checkBackendHealth,
   getStoredAuthUser,
   saveStoredAuthUser,
-  defaultMakerUser,
+  isUserMaker,
 } from './lib/api';
 import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
 import { Navbar, TabType } from './components/Navbar';
+import { LandingHero } from './components/LandingHero';
 import { CalculatorTab } from './components/CalculatorTab';
 import { MakerWorldTab } from './components/MakerWorldTab';
 import { ClientRequestsTab } from './components/ClientRequestsTab';
@@ -44,7 +45,10 @@ import { GoogleAuthModal } from './components/GoogleAuthModal';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser>(getStoredAuthUser);
-  const [activeTab, setActiveTab] = useState<TabType>('calculator');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const user = getStoredAuthUser();
+    return user.role === 'maker' ? 'client_requests' : 'makerworld';
+  });
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
@@ -55,6 +59,18 @@ export function App() {
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [importedQuoteData, setImportedQuoteData] = useState<{ items?: QuoteItem[]; notes?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Periodic health check polling
+  useEffect(() => {
+    let intervalId: any;
+    async function poll() {
+      const isOnline = await checkBackendHealth();
+      setIsBackendConnected(isOnline);
+    }
+    poll();
+    intervalId = setInterval(poll, 8000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -85,26 +101,32 @@ export function App() {
     init();
   }, []);
 
-  // Update stored user
+  // Update stored user - strictly enforce only wesleysirica@gmail.com is Maker
   const handleUpdateCurrentUser = (user: AuthUser) => {
-    setCurrentUser(user);
-    saveStoredAuthUser(user);
+    const isMaker = isUserMaker(user.email);
+    const updated: AuthUser = {
+      ...user,
+      role: isMaker ? 'maker' : 'client',
+    };
+    setCurrentUser(updated);
+    saveStoredAuthUser(updated);
+
+    if (isMaker) {
+      setActiveTab('client_requests');
+    } else {
+      setActiveTab('makerworld');
+    }
   };
 
-  // Toggle Role between Maker and Client
-  const handleToggleRole = () => {
-    const nextRole = currentUser.role === 'maker' ? 'client' : 'maker';
-    const updatedUser: AuthUser = {
-      ...currentUser,
-      role: nextRole,
+  const handleLogout = () => {
+    const guest: AuthUser = {
+      id: '',
+      name: 'Visitante',
+      email: '',
+      phone: '',
+      role: 'client',
     };
-    handleUpdateCurrentUser(updatedUser);
-
-    if (nextRole === 'client') {
-      setActiveTab('makerworld');
-    } else {
-      setActiveTab('client_requests');
-    }
+    handleUpdateCurrentUser(guest);
   };
 
   // Customer handlers
@@ -266,24 +288,6 @@ export function App() {
     }
   };
 
-  const handleLogout = () => {
-    const isMaker = currentUser.role === 'maker';
-    if (isMaker) {
-      // Maker remains maker default
-      handleUpdateCurrentUser(defaultMakerUser);
-    } else {
-      // Reset client to guest
-      const guestClient: AuthUser = {
-        id: `client-${Date.now()}`,
-        name: '',
-        email: '',
-        phone: '',
-        role: 'client',
-      };
-      handleUpdateCurrentUser(guestClient);
-    }
-  };
-
   // Count pending client requests for Maker inbox badge
   const pendingRequestsCount = quotes.filter(
     (q) => q.status === 'pending_review' || (q.clientDecision && q.status !== 'completed' && q.status !== 'cancelled')
@@ -308,12 +312,22 @@ export function App() {
         isBackendConnected={isBackendConnected}
         currentUser={currentUser}
         pendingRequestsCount={pendingRequestsCount}
-        onToggleRole={handleToggleRole}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Landing Hero for Visitors/Guests */}
+        {!currentUser.email && (
+          <LandingHero
+            onOpenLogin={() => setIsAuthModalOpen(true)}
+            onStartQuote={() => {
+              setActiveTab('makerworld');
+              const el = document.querySelector('input[type="url"]') as HTMLInputElement;
+              if (el) el.focus();
+            }}
+          />
+        )}
         {/* MAKER INBOX: SOLICITAÇÕES DE CLIENTES */}
         {activeTab === 'client_requests' && (
           <ClientRequestsTab

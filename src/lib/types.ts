@@ -90,7 +90,8 @@ export interface Material {
   weightSpoolKg: number; // Peso por rolo em kg (ex: 1)
   costPerKg: number; // costPerSpool / weightSpoolKg
   type: string; // PLA, PETG, ABS, TPU, Resina
-  color?: string;
+  color?: string; // Hex ou nome da cor
+  colorName?: string; // Nome legível da cor (ex: Vermelho, Preto, Dourado)
 }
 
 export interface FixedExpenseItem {

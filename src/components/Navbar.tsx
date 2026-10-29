@@ -8,12 +8,10 @@ import {
   Settings,
   FileText,
   Database,
-  Wifi,
   Inbox,
   Package,
   LogIn,
   LogOut,
-  RefreshCw,
   Phone,
 } from 'lucide-react';
 import { AuthUser } from '../lib/types';
@@ -35,7 +33,6 @@ interface NavbarProps {
   isBackendConnected: boolean;
   currentUser: AuthUser;
   pendingRequestsCount?: number;
-  onToggleRole: () => void;
   onOpenAuthModal: () => void;
   onLogout: () => void;
 }
@@ -46,7 +43,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   isBackendConnected,
   currentUser,
   pendingRequestsCount = 0,
-  onToggleRole,
   onOpenAuthModal,
   onLogout,
 }) => {
@@ -80,58 +76,49 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
       {/* Top Bar: Brand + User Actions (Never collides with tabs) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-center justify-between h-16">
           
           {/* Logo & Brand */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <img
               src="/bagrelab-logo.png"
               alt="BagreLab"
-              className="w-10 h-10 object-contain select-none"
+              className="w-12 h-12 object-contain select-none rounded-xl"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-black text-slate-900 tracking-tight leading-none">BagreLab</span>
+                <span className="text-lg font-black text-slate-900 tracking-tight leading-none">BagreLab</span>
+                {isMaker && (
+                  <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                    Maker
+                  </span>
+                )}
               </div>
-              <span className="text-[10px] text-slate-500 hidden sm:block mt-0.5">
+              <span className="text-[11px] text-slate-500 hidden sm:block mt-0.5">
                 {isMaker ? 'Gestão de Custos & Precificação 3D' : 'Orçamentos Automáticos de Impressão 3D'}
               </span>
             </div>
           </div>
 
-          {/* Right Area: Role Switcher & User Profile */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Role Switcher Toggle */}
-            <button
-              onClick={onToggleRole}
-              title={`Alternar para ${isMaker ? 'Visão do Cliente' : 'Visão do Maker'}`}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-2xs ${
-                isMaker
-                  ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
-                  : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-              }`}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>{isMaker ? 'Simular Cliente' : 'Modo Maker'}</span>
-            </button>
-
+          {/* Right Area: User Profile & Backend Status */}
+          <div className="flex items-center gap-2.5 shrink-0">
             {/* User Profile / Auth State */}
             {currentUser.email ? (
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              <div className="flex items-center gap-2.5">
                 {currentUser.avatarUrl ? (
                   <img
                     src={currentUser.avatarUrl}
                     alt={currentUser.name}
-                    className="w-7 h-7 rounded-full border border-slate-200 object-cover"
+                    className="w-8 h-8 rounded-full border border-slate-200 object-cover"
                   />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
                 )}
                 
                 <div className="hidden md:block text-left">
-                  <div className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+                  <div className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[140px]">
                     {currentUser.name}
                   </div>
                   {currentUser.phone && (
@@ -147,36 +134,42 @@ export const Navbar: React.FC<NavbarProps> = ({
                   title="Sair / Trocar Conta"
                   className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <button
                 onClick={onOpenAuthModal}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg shadow-2xs transition-colors cursor-pointer"
               >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Entrar</span>
+                <LogIn className="w-4 h-4" />
+                <span>Entrar com Google</span>
               </button>
             )}
 
             {/* Backend connectivity indicator */}
             <div
-              className={`p-1.5 rounded-full border hidden sm:block ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium hidden sm:flex ${
                 isBackendConnected
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}
               title={
                 isBackendConnected
-                  ? 'Conectado ao Backend Express + MongoDB'
+                  ? 'Conectado à nuvem VPS (MongoDB Ativo)'
                   : 'Modo Offline: Armazenamento Local'
               }
             >
               {isBackendConnected ? (
-                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Nuvem Ativa</span>
+                </>
               ) : (
-                <Database className="w-3.5 h-3.5 text-amber-600" />
+                <>
+                  <Database className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Modo Local</span>
+                </>
               )}
             </div>
           </div>

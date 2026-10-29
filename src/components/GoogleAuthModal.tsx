@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthUser } from '../lib/types';
+import { isUserMaker } from '../lib/api';
 import { X, Phone, CheckCircle2 } from 'lucide-react';
 
 declare global {
@@ -138,13 +139,14 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
       return;
     }
 
+    const isMaker = isUserMaker(googleEmail);
     const newUser: AuthUser = {
-      id: `client-${Date.now()}`,
+      id: isMaker ? 'maker-wesley' : (googleId || `client-${Date.now()}`),
       name: googleName,
       email: googleEmail,
       phone: cleanPhone,
       avatarUrl: googleAvatar,
-      role: 'client',
+      role: isMaker ? 'maker' : 'client',
       googleId: googleId || `goog_${Date.now()}`,
     };
 
