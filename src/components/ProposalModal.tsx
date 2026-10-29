@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer as PrintIcon, Check, Copy, MessageSquare } from 'lucide-react';
+import { X, Printer as PrintIcon, Check, Copy, MessageSquare, Wrench } from 'lucide-react';
 import { QuoteCalculationResult, QuoteItem, Material, Printer, SavedQuote } from '../lib/types';
 import { formatCurrency, formatHours, formatWhatsAppProposalMessage } from '../lib/calculator';
 import { sendWhatsAppMessageApi } from '../lib/api';
@@ -198,11 +198,12 @@ Prazo de Produção: 1 a 2 dias úteis após aprovação.`;
             <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3.5 space-y-1.5 text-xs">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <span className="font-bold text-blue-900 uppercase tracking-wider font-mono text-[11px] flex items-center gap-1.5">
-                  <span>🛠️ Orçamento Técnico Revisado pelo Maker</span>
+                  <Wrench className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Orçamento Técnico Revisado pelo Maker</span>
                 </span>
                 <span className="text-[11px] font-mono text-slate-600">
                   Estimativa Inicial: <span className="line-through text-slate-400">{formatCurrency(quote.originalPrice || 0)}</span>
-                  {' ➔ '}
+                  {' -> '}
                   <strong className="text-emerald-700 font-black">{formatCurrency(calculation.finalPriceWithShipping || calculation.salePriceCash)}</strong>
                 </span>
               </div>

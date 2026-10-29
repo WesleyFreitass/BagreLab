@@ -150,6 +150,7 @@ export interface QuoteItem {
   printDays: number;
   printHours: number;
   printMinutes: number;
+  quantity?: number;
 }
 
 export interface QuoteCalculationResult {
@@ -216,6 +217,10 @@ export interface SavedQuote {
   shippingCost: number;
   notes?: string;
   calculation: QuoteCalculationResult;
+  // Quantidade & Status de Pagamento (baixa exclusiva do Maker)
+  quantity?: number;
+  paymentStatus?: 'pending' | 'paid';
+  paidAt?: string;
   // Revisão Técnica do Maker (Valores Reais pós-fatiamento)
   isRevised?: boolean;
   originalPrice?: number;

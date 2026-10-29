@@ -5,7 +5,6 @@ import { ProposalModal } from './ProposalModal';
 import { QuoteRevisionModal } from './QuoteRevisionModal';
 import {
   Inbox,
-  Rocket,
   Clock,
   MessageSquare,
   Search,
@@ -14,8 +13,14 @@ import {
   Trash2,
   Phone,
   Wrench,
-  Sparkles,
   Share2,
+  CheckCircle2,
+  Play,
+  CreditCard,
+  RotateCcw,
+  DollarSign,
+  Package,
+  Layers,
 } from 'lucide-react';
 
 interface ClientRequestsTabProps {
@@ -39,13 +44,32 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
   onSaveQuote,
   onOpenInCalculator,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'direct_print' | 'confirm_quote' | 'revised' | 'in_production' | 'completed'>('all');
+  const [filter, setFilter] = useState<
+    'all' | 'pending_payment' | 'paid' | 'direct_print' | 'confirm_quote' | 'revised' | 'in_production' | 'completed'
+  >('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
   const [revisingQuote, setRevisingQuote] = useState<SavedQuote | null>(null);
 
   // Filter requests (quotes with clientDecision or makerWorldData or pending status)
-  const clientQuotes = quotes.filter((q) => q.clientDecision || q.makerWorldData || q.status === 'pending_review' || q.status === 'revised');
+  const clientQuotes = quotes.filter(
+    (q) => q.clientDecision || q.makerWorldData || q.status === 'pending_review' || q.status === 'revised'
+  );
+
+  // Financial summary:
+  const totalPendingPayment = clientQuotes
+    .filter((q) => q.status !== 'cancelled' && q.paymentStatus !== 'paid')
+    .reduce((sum, q) => sum + (q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0), 0);
+
+  const totalPaid = clientQuotes
+    .filter((q) => q.paymentStatus === 'paid')
+    .reduce((sum, q) => sum + (q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0), 0);
+
+  const countPendingPayment = clientQuotes.filter((q) => q.status !== 'cancelled' && q.paymentStatus !== 'paid').length;
+  const countPaid = clientQuotes.filter((q) => q.paymentStatus === 'paid').length;
+  const countDirectPrint = clientQuotes.filter((q) => q.clientDecision === 'direct_print').length;
+  const countConfirmQuote = clientQuotes.filter((q) => q.clientDecision === 'confirm_quote' && !q.isRevised).length;
+  const countRevised = clientQuotes.filter((q) => q.isRevised).length;
 
   const filtered = clientQuotes.filter((q) => {
     const matchesSearch =
@@ -56,6 +80,8 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
     if (!matchesSearch) return false;
 
+    if (filter === 'pending_payment') return q.status !== 'cancelled' && q.paymentStatus !== 'paid';
+    if (filter === 'paid') return q.paymentStatus === 'paid';
     if (filter === 'direct_print') return q.clientDecision === 'direct_print';
     if (filter === 'confirm_quote') return q.clientDecision === 'confirm_quote' && !q.isRevised;
     if (filter === 'revised') return q.isRevised;
@@ -65,9 +91,17 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
     return true;
   });
 
-  const countDirectPrint = clientQuotes.filter((q) => q.clientDecision === 'direct_print').length;
-  const countConfirmQuote = clientQuotes.filter((q) => q.clientDecision === 'confirm_quote' && !q.isRevised).length;
-  const countRevised = clientQuotes.filter((q) => q.isRevised).length;
+  // Toggle payment status (Maker only)
+  const handleTogglePaymentStatus = async (quote: SavedQuote) => {
+    const isCurrentlyPaid = quote.paymentStatus === 'paid';
+    const nextStatus = isCurrentlyPaid ? 'pending' : 'paid';
+    const updated: SavedQuote = {
+      ...quote,
+      paymentStatus: nextStatus,
+      paidAt: nextStatus === 'paid' ? new Date().toISOString() : undefined,
+    };
+    await onSaveQuote(updated);
+  };
 
   // Standard initial WhatsApp message
   const handleOpenWhatsApp = (q: SavedQuote) => {
@@ -75,9 +109,14 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
     let clean = q.customerPhone.replace(/\D/g, '');
     if (clean.length === 10 || clean.length === 11) clean = `55${clean}`;
 
-    const text = q.clientDecision === 'direct_print'
-      ? `Olá ${q.customerName}! Recebemos seu pedido com a opção *PODE IMPRIMIR* para o modelo "${q.makerWorldData?.modelTitle || 'Impressão 3D'}" (Orçamento #${q.quoteNumber}). Já estamos analisando os materiais para iniciar a produção!`
-      : `Olá ${q.customerName}! Tudo bem? Recebemos sua solicitação de orçamento #${q.quoteNumber} para o modelo "${q.makerWorldData?.modelTitle || 'Impressão 3D'}". Estou entrando em contato para confirmar os detalhes técnicos!`;
+    const text =
+      q.clientDecision === 'direct_print'
+        ? `Olá ${q.customerName}! Recebemos seu pedido com a opção PODE IMPRIMIR para o modelo "${
+            q.makerWorldData?.modelTitle || 'Impressão 3D'
+          }" (Orçamento #${q.quoteNumber}). Já estamos analisando os materiais para iniciar a produção!`
+        : `Olá ${q.customerName}! Tudo bem? Recebemos sua solicitação de orçamento #${q.quoteNumber} para o modelo "${
+            q.makerWorldData?.modelTitle || 'Impressão 3D'
+          }". Estou entrando em contato para confirmar os detalhes técnicos!`;
 
     window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -113,48 +152,120 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="p-2 rounded-lg bg-blue-50 text-blue-600">
-              <Inbox className="w-5 h-5" />
-            </span>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Orçamentos Solicitados por Clientes
-            </h2>
+      {/* Top Banner & Financial Metrics */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                <Inbox className="w-5 h-5" />
+              </span>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                Orçamentos Solicitados por Clientes
+              </h2>
+            </div>
+            <p className="text-sm text-slate-500">
+              Gerencie solicitações, execute a conferência técnica real, atualize orçamentos e controle a baixa dos pagamentos recebidos.
+            </p>
           </div>
-          <p className="text-sm text-slate-500">
-            Revise os orçamentos estimados pelos clientes, faça o fatiamento real, ajuste valores e envie a proposta final pelo WhatsApp.
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-slate-500" />
+              <span>{clientQuotes.length} pedidos no total</span>
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {countRevised > 0 && (
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span>{countRevised} revisado(s) pelo Maker</span>
-            </span>
-          )}
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-            <Rocket className="w-3.5 h-3.5" />
-            <span>{countDirectPrint} pedidos "Pode Imprimir"</span>
-          </span>
+        {/* Financial KPI Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t border-slate-100">
+          <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 font-mono block">
+                Total Pendente de Pagamento
+              </span>
+              <div className="text-xl font-black font-mono text-amber-950 mt-0.5">
+                {formatCurrency(totalPendingPayment)}
+              </div>
+              <span className="text-[11px] text-amber-700">
+                {countPendingPayment} pedido(s) aguardando baixa
+              </span>
+            </div>
+            <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 font-mono block">
+                Total Pago e Baixado
+              </span>
+              <div className="text-xl font-black font-mono text-emerald-950 mt-0.5">
+                {formatCurrency(totalPaid)}
+              </div>
+              <span className="text-[11px] text-emerald-700">
+                {countPaid} pedido(s) com baixa confirmada
+              </span>
+            </div>
+            <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <DollarSign className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between sm:col-span-2 lg:col-span-1">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
+                Revisão Técnica
+              </span>
+              <div className="text-xl font-bold font-mono text-slate-800 mt-0.5">
+                {countRevised} / {clientQuotes.length}
+              </div>
+              <span className="text-[11px] text-slate-500">
+                Pedidos com fatiamento real salvo
+              </span>
+            </div>
+            <div className="w-9 h-9 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5" />
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5 w-full lg:w-auto">
           <button
             onClick={() => setFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              filter === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              filter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             Todos ({clientQuotes.length})
+          </button>
+
+          <button
+            onClick={() => setFilter('pending_payment')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+              filter === 'pending_payment'
+                ? 'bg-amber-600 text-white'
+                : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>A Pagar ({countPendingPayment})</span>
+          </button>
+
+          <button
+            onClick={() => setFilter('paid')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+              filter === 'paid'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Pagos ({countPaid})</span>
           </button>
 
           <button
@@ -170,25 +281,25 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
           <button
             onClick={() => setFilter('revised')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
               filter === 'revised'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Wrench className="w-3.5 h-3.5" />
             <span>Revisados ({countRevised})</span>
           </button>
 
           <button
             onClick={() => setFilter('direct_print')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
               filter === 'direct_print'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                ? 'bg-emerald-700 text-white'
+                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
             }`}
           >
-            <Rocket className="w-3.5 h-3.5" />
+            <Play className="w-3.5 h-3.5" />
             <span>Pode Imprimir ({countDirectPrint})</span>
           </button>
 
@@ -196,8 +307,8 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
             onClick={() => setFilter('in_production')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
               filter === 'in_production'
-                ? 'bg-amber-600 text-white'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                ? 'bg-slate-700 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             Em Produção
@@ -207,7 +318,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
             onClick={() => setFilter('completed')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
               filter === 'completed'
-                ? 'bg-purple-600 text-white'
+                ? 'bg-purple-700 text-white'
                 : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
             }`}
           >
@@ -215,7 +326,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
           </button>
         </div>
 
-        <div className="relative w-full sm:w-72">
+        <div className="relative w-full lg:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -243,6 +354,8 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
             const isDirectPrint = quote.clientDecision === 'direct_print';
             const mw = quote.makerWorldData;
             const isRevised = !!quote.isRevised;
+            const isPaid = quote.paymentStatus === 'paid';
+            const quantity = quote.quantity || 1;
             const originalVal = quote.originalPrice ?? quote.calculation?.salePriceCash ?? 0;
             const currentVal = quote.calculation?.finalPriceWithShipping || quote.calculation?.salePriceCash || 0;
             const priceDiff = currentVal - originalVal;
@@ -251,7 +364,9 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
               <div
                 key={qId}
                 className={`bg-white rounded-xl border p-5 shadow-xs transition-all space-y-4 ${
-                  isRevised ? 'border-blue-200 ring-1 ring-blue-100 hover:border-blue-300' : 'border-slate-200 hover:border-slate-300'
+                  isRevised
+                    ? 'border-blue-200 ring-1 ring-blue-100 hover:border-blue-300'
+                    : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-3 border-b border-slate-100">
@@ -273,15 +388,15 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                       <div className="flex items-center gap-2 flex-wrap">
                         {isRevised && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
-                            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                            <Wrench className="w-3.5 h-3.5 text-indigo-600" />
                             <span>REVISADO PELO MAKER</span>
                           </span>
                         )}
 
                         {isDirectPrint ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <Rocket className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>PODE IMPRIMIR!</span>
+                            <Play className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>PODE IMPRIMIR</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
@@ -292,6 +407,13 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
                         <span className="text-xs text-slate-400 font-mono">#{quote.quoteNumber}</span>
                         <span className="text-xs text-slate-400">• {quote.date}</span>
+
+                        {quantity > 1 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300 font-mono">
+                            <Layers className="w-3 h-3 text-slate-500" />
+                            <span>{quantity} unidades</span>
+                          </span>
+                        )}
                       </div>
 
                       <h3 className="text-sm font-bold text-slate-900 leading-snug">
@@ -312,8 +434,23 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Right: Value & Status */}
-                  <div className="text-left sm:text-right space-y-1 shrink-0">
+                  {/* Right: Value, Payment Status & Production Status */}
+                  <div className="text-left sm:text-right space-y-1.5 shrink-0">
+                    {/* Payment Status Badge */}
+                    <div className="flex sm:justify-end">
+                      {isPaid ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>PAGO</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                          <span>PAGAMENTO PENDENTE</span>
+                        </span>
+                      )}
+                    </div>
+
                     {isRevised ? (
                       <div>
                         <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
@@ -326,7 +463,11 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                           </span>
                         </div>
                         {Math.abs(priceDiff) >= 0.05 && (
-                          <span className={`text-[10px] font-bold ${priceDiff > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          <span
+                            className={`text-[10px] font-bold ${
+                              priceDiff > 0 ? 'text-amber-700' : 'text-emerald-700'
+                            }`}
+                          >
                             {priceDiff > 0 ? `+${formatCurrency(priceDiff)}` : `-${formatCurrency(Math.abs(priceDiff))}`}
                           </span>
                         )}
@@ -395,7 +536,10 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                     <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
                       Dados do Cliente:
                     </span>
-                    <strong className="text-slate-900 text-sm block">{quote.customerName}</strong>
+                    <div className="flex items-center justify-between">
+                      <strong className="text-slate-900 text-sm block">{quote.customerName}</strong>
+                      <span className="text-[11px] text-slate-500 font-mono">Qtd: {quantity} un.</span>
+                    </div>
                     {quote.customerPhone && (
                       <div className="flex items-center gap-2 font-mono text-slate-700 flex-wrap">
                         <Phone className="w-3.5 h-3.5 text-slate-400" />
@@ -437,7 +581,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                             >
                               <span>{mat?.name || f.originalType}</span>
                               <span className="opacity-60">|</span>
-                              <span className="font-mono">{f.usedG}g</span>
+                              <span className="font-mono">{(f.usedG || 0) * quantity}g</span>
                             </div>
                           );
                         })}
@@ -469,7 +613,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                         title="Enviar proposta com valor antigo vs novo no WhatsApp"
                       >
                         <Share2 className="w-3.5 h-3.5" />
-                        <span>Enviar Novo Valor no WhatsApp 📲</span>
+                        <span>Enviar Novo Valor no WhatsApp</span>
                       </button>
                     ) : (
                       <button
@@ -477,24 +621,47 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                         className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors cursor-pointer flex items-center gap-1.5"
                       >
                         <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Chamar no Zap</span>
+                        <span>Chamar no WhatsApp</span>
+                      </button>
+                    )}
+
+                    {/* Maker Payment Status Toggle */}
+                    {isPaid ? (
+                      <button
+                        onClick={() => handleTogglePaymentStatus(quote)}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                        title="Desfazer baixa e marcar como pendente"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Desfazer Baixa</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleTogglePaymentStatus(quote)}
+                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                        title="Registrar recebimento do pagamento"
+                      >
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Dar Baixa (Marcar como Pago)</span>
                       </button>
                     )}
 
                     <button
                       onClick={() => onUpdateStatus(qId, 'in_production')}
                       disabled={quote.status === 'in_production'}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
                     >
-                      ▶️ Em Produção
+                      <Play className="w-3 h-3 text-amber-700" />
+                      <span>Em Produção</span>
                     </button>
 
                     <button
                       onClick={() => onUpdateStatus(qId, 'completed')}
                       disabled={quote.status === 'completed'}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
                     >
-                      ✅ Concluir
+                      <CheckCircle2 className="w-3.5 h-3.5 text-purple-700" />
+                      <span>Concluir</span>
                     </button>
                   </div>
 

@@ -25,6 +25,14 @@ const quoteSchema = new mongoose.Schema(
     revisedPrice: { type: Number, default: null },
     revisionNotes: { type: String, default: '' },
     revisedAt: { type: Date, default: null },
+    // Quantidade total e Status de Pagamento (baixa dada exclusivamente pelo Maker)
+    quantity: { type: Number, default: 1 },
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'paid'],
+      default: 'pending',
+    },
+    paidAt: { type: Date, default: null },
     makerWorldData: {
       designId: Number,
       modelTitle: String,
@@ -54,6 +62,7 @@ const quoteSchema = new mongoose.Schema(
         printDays: Number,
         printHours: Number,
         printMinutes: Number,
+        quantity: { type: Number, default: 1 },
       },
     ],
     laborActivities: [

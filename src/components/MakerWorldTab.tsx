@@ -71,6 +71,9 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
   const [selectedPrinterId, setSelectedPrinterId] = useState<string>(printers[0]?.id || '');
   const [profitMargin, setProfitMargin] = useState(settings.defaultProfitMarginPercent || 50);
 
+  // Quantity of parts requested
+  const [quantity, setQuantity] = useState(1);
+
   // Decision selection ('confirm_quote' | 'direct_print')
   const [selectedDecision, setSelectedDecision] = useState<'confirm_quote' | 'direct_print'>('confirm_quote');
 
@@ -163,7 +166,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
     );
   };
 
-  // Multi-material calculation: Machine print time is applied once, material weights are attributed per slot
+  // Multi-material calculation: Machine print time is applied once, material weights are attributed per slot, multiplied by quantity
   const calculation = React.useMemo(() => {
     if (!selectedProfile || filamentSlots.length === 0) return null;
 
@@ -174,11 +177,12 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
       name: `${modelData?.title || 'Modelo'} [Slot ${idx + 1} - ${slot.originalType}]`,
       materialId: slot.selectedMaterialId || materials[0]?.id || 'mat-1',
       printerId: currentPrinter?.id || 'printer-1',
-      weightGrams: slot.usedG,
-      // Only attribute print time to the first slot so hours are not multiplied
-      printDays: idx === 0 ? selectedProfile.printDays : 0,
-      printHours: idx === 0 ? selectedProfile.printHours : 0,
-      printMinutes: idx === 0 ? selectedProfile.printMinutes : 0,
+      weightGrams: (slot.usedG || 0) * quantity,
+      // Only attribute print time to the first slot so hours are not multiplied across slots, but scaled by quantity
+      printDays: idx === 0 ? selectedProfile.printDays * quantity : 0,
+      printHours: idx === 0 ? selectedProfile.printHours * quantity : 0,
+      printMinutes: idx === 0 ? selectedProfile.printMinutes * quantity : 0,
+      quantity: 1,
     }));
 
     return calculateQuote(
@@ -200,7 +204,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
       settings.onlinePlatformFeePercent || 0,
       0
     );
-  }, [selectedProfile, filamentSlots, selectedPrinterId, profitMargin, modelData, printers, materials, settings]);
+  }, [selectedProfile, filamentSlots, selectedPrinterId, profitMargin, modelData, printers, materials, settings, quantity]);
 
   // Handle client quote submission
   const handleSubmitDecision = async (
@@ -221,6 +225,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
           JSON.stringify({
             url,
             decision,
+            quantity,
             modelData,
             selectedProfile,
             filamentSlots,
@@ -252,10 +257,11 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
             name: `${activeModel.title} [Slot ${idx + 1} - ${slot.originalType}]`,
             materialId: slot.selectedMaterialId || materials[0]?.id || 'mat-1',
             printerId: currentPrinter?.id || 'printer-1',
-            weightGrams: slot.usedG,
-            printDays: idx === 0 ? activeProfile.printDays : 0,
-            printHours: idx === 0 ? activeProfile.printHours : 0,
-            printMinutes: idx === 0 ? activeProfile.printMinutes : 0,
+            weightGrams: (slot.usedG || 0) * quantity,
+            printDays: idx === 0 ? activeProfile.printDays * quantity : 0,
+            printHours: idx === 0 ? activeProfile.printHours * quantity : 0,
+            printMinutes: idx === 0 ? activeProfile.printMinutes * quantity : 0,
+            quantity: 1,
           })),
           materials,
           currentPrinter ? [currentPrinter] : printers,
@@ -284,6 +290,8 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         date: new Date().toLocaleDateString('pt-BR'),
         status: decision === 'direct_print' ? 'approved' : 'pending_review',
         clientDecision: decision,
+        quantity,
+        paymentStatus: 'pending',
         makerWorldData: {
           designId: activeModel.designId,
           modelTitle: activeModel.title,
@@ -297,10 +305,11 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
           name: `${activeModel.title} (Slot ${idx + 1} - ${slot.originalType})`,
           materialId: slot.selectedMaterialId,
           printerId: activePrinterId || printers[0]?.id || '',
-          weightGrams: slot.usedG,
-          printDays: idx === 0 ? activeProfile.printDays : 0,
-          printHours: idx === 0 ? activeProfile.printHours : 0,
-          printMinutes: idx === 0 ? activeProfile.printMinutes : 0,
+          weightGrams: (slot.usedG || 0) * quantity,
+          printDays: idx === 0 ? activeProfile.printDays * quantity : 0,
+          printHours: idx === 0 ? activeProfile.printHours * quantity : 0,
+          printMinutes: idx === 0 ? activeProfile.printMinutes * quantity : 0,
+          quantity: 1,
         })),
         laborActivities: [
           { id: 'act-1', name: 'Preparação & Fatiamento MakerWorld', minutes: 10 },
@@ -312,12 +321,12 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         cardFeePercent: settings.cardFeePercent || 0,
         onlinePlatformFeePercent: settings.onlinePlatformFeePercent || 0,
         shippingCost: 0,
-        notes: `Solicitação via Portal MakerWorld (BagreLab).\nDecisão do Cliente: ${
+        notes: `Solicitação via Portal MakerWorld (BagreLab).\nQuantidade: ${quantity} unidade(s)\nDecisão do Cliente: ${
           decision === 'direct_print' ? 'Pode Imprimir! (Aprovação de Produção)' : 'Confirmar Orçamento Final'
         }\nPerfil: ${activeProfile.title}\nCores/Materiais: ${activeSlots
           .map((s) => {
             const mat = materials.find((m) => m.id === s.selectedMaterialId);
-            return `${s.originalType} (${s.usedG}g) -> ${mat?.name || ''} [Obs: ${s.customColorName || 'Sem obs'}]`;
+            return `${s.originalType} (${s.usedG * quantity}g) -> ${mat?.name || ''} [Obs: ${s.customColorName || 'Sem obs'}]`;
           })
           .join(', ')}`,
         calculation: currentCalc,
@@ -833,17 +842,58 @@ Podemos prosseguir com o pedido?`;
           {/* Right Column: Final Price & Decision Selection (5 Cols) */}
           <div className="lg:col-span-5 space-y-5">
             
+            {/* Quantity Selector Card */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-slate-900 block">Quantidade de Peças</span>
+                <span className="text-[11px] text-slate-500">
+                  {quantity > 1 ? `Multiplica tempo e material por ${quantity}` : '1 unidade deste modelo'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  disabled={quantity <= 1}
+                  className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-base flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer"
+                  title="Diminuir quantidade"
+                >
+                  -
+                </button>
+                <div className="w-12 text-center">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    className="w-full text-center font-mono font-bold text-sm text-slate-900 bg-slate-50 rounded-md py-1 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((prev) => Math.min(100, prev + 1))}
+                  className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-base flex items-center justify-center transition-colors cursor-pointer"
+                  title="Aumentar quantidade"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
             {/* Price Hero Box */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="bg-slate-900 text-white p-6 text-center space-y-1">
                 <span className="text-xs text-slate-400 uppercase font-bold tracking-wider block font-mono">
-                  Valor Estimado de Produção (À Vista / PIX)
+                  {quantity > 1 ? `Valor Estimado Total (${quantity} unidades)` : 'Valor Estimado de Produção (À Vista / PIX)'}
                 </span>
                 <div className="text-3xl sm:text-4xl font-black font-mono tracking-tight text-white py-1">
                   {formatCurrency(calculation.salePriceCash)}
                 </div>
                 <span className="text-[11px] text-slate-400 block">
-                  {selectedProfile.weightGrams}g no total • ~{formatHours(selectedProfile.totalHours)} de impressão
+                  {selectedProfile.weightGrams * quantity}g no total • ~{formatHours(selectedProfile.totalHours * quantity)} de impressão
+                  {quantity > 1 && ` • ${formatCurrency(calculation.salePriceCash / quantity)} / un.`}
                 </span>
               </div>
 
@@ -1024,13 +1074,14 @@ Podemos prosseguir com o pedido?`;
 
             {/* Title & Badge */}
             <div>
-              <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold tracking-wider uppercase font-mono mb-2">
-                ✅ Confirmação de Envio
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold tracking-wider uppercase font-mono mb-2">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Confirmação de Envio</span>
               </span>
               <h3 className="text-xl sm:text-2xl font-black text-slate-900">
                 {submittedQuote.clientDecision === 'direct_print'
-                  ? 'Pedido Enviado para Produção!'
-                  : 'Solicitação de Orçamento Enviada!'}
+                  ? 'Pedido Enviado para Produção'
+                  : 'Solicitação de Orçamento Enviada'}
               </h3>
               <p className="text-xs text-slate-500 mt-1.5">
                 Seu pedido foi registrado no sistema e enviado diretamente ao Maker da oficina.
@@ -1091,7 +1142,7 @@ Podemos prosseguir com o pedido?`;
 
               {/* Informative next step notice */}
               <div className="bg-blue-50/80 p-2.5 rounded-xl border border-blue-100 text-[11px] text-blue-800 leading-relaxed">
-                💡 O Maker recebeu seus dados e entrará em contato via WhatsApp para confirmar prazos e detalhes de entrega.
+                O Maker recebeu seus dados e entrará em contato via WhatsApp para confirmar prazos e detalhes de entrega.
               </div>
             </div>
 

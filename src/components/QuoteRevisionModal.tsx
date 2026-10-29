@@ -87,6 +87,7 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
   }, [quote, materials, printers]);
 
   const [items, setItems] = useState<QuoteItem[]>(initialItems);
+  const [quantity, setQuantity] = useState<number>(quote.quantity || 1);
   const [laborActivities] = useState<LaborActivity[]>(
     quote.laborActivities && quote.laborActivities.length > 0
       ? quote.laborActivities
@@ -102,10 +103,15 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Live Recalculation
+  // Live Recalculation (scaled by quantity)
   const currentCalculation = useMemo(() => {
+    const scaledItems = items.map((item) => ({
+      ...item,
+      quantity,
+    }));
+
     return calculateQuote(
-      items,
+      scaledItems,
       materials,
       printers,
       {
@@ -120,7 +126,7 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
       settings.onlinePlatformFeePercent || 0,
       shippingCost
     );
-  }, [items, materials, printers, settings, laborActivities, consumables, profitMarginPercent, shippingCost]);
+  }, [items, quantity, materials, printers, settings, laborActivities, consumables, profitMarginPercent, shippingCost]);
 
   const currentFinalPrice = currentCalculation.finalPriceWithShipping || currentCalculation.salePriceCash || 0;
   const priceDiff = currentFinalPrice - baselineOriginalPrice;
@@ -163,9 +169,11 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
   const handleSave = async (openWhatsApp: boolean) => {
     setIsSubmitting(true);
     try {
+      const scaledItems = items.map((i) => ({ ...i, quantity }));
       const updatedQuote: SavedQuote = {
         ...quote,
-        items,
+        items: scaledItems,
+        quantity,
         laborActivities,
         consumables,
         profitMarginPercent,
@@ -246,8 +254,8 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
 
             {/* Seta / Comparativo */}
             <div className="text-center flex flex-col items-center justify-center">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mb-1">
-                ➔
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-mono font-bold mb-1 text-xs">
+                &rarr;
               </div>
               {Math.abs(priceDiff) < 0.05 ? (
                 <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
@@ -267,14 +275,53 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
             {/* Novo Valor Real */}
             <div className="space-y-1 text-center sm:text-right">
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 block font-mono">
-                ✨ Novo Valor Real Confirmado
+                Novo Valor Real Confirmado
               </span>
               <div className="text-2xl sm:text-3xl font-black text-emerald-600 font-mono">
                 {formatCurrency(currentFinalPrice)}
               </div>
               <span className="text-[11px] text-emerald-700 font-medium">
-                Reflete tempo real e peso exato do fatiador
+                {quantity > 1 ? `${quantity} unidades • ${formatCurrency(currentFinalPrice / quantity)} / un.` : 'Reflete tempo real e peso exato do fatiador'}
               </span>
+            </div>
+          </div>
+
+          {/* Quantity Selector for Revision */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
+            <div>
+              <span className="text-xs font-bold text-slate-900 block font-mono">Quantidade do Pedido</span>
+              <span className="text-[11px] text-slate-500">
+                {quantity > 1 ? `Multiplica tempo e material por ${quantity}` : '1 unidade deste modelo'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                disabled={quantity <= 1}
+                className="w-8 h-8 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold text-base flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer"
+                title="Diminuir quantidade"
+              >
+                -
+              </button>
+              <div className="w-12 text-center">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full text-center font-mono font-bold text-sm text-slate-900 bg-white rounded-md py-1 border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuantity((prev) => prev + 1)}
+                className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-base flex items-center justify-center transition-colors cursor-pointer"
+                title="Aumentar quantidade"
+              >
+                +
+              </button>
             </div>
           </div>
 
@@ -563,7 +610,7 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
             >
               <Share2 className="w-4 h-4" />
-              <span>Salvar e Enviar no WhatsApp 📲</span>
+              <span>Salvar e Enviar no WhatsApp</span>
             </button>
           </div>
         </div>

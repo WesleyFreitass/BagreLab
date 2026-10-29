@@ -299,13 +299,14 @@ export function calculateQuote(
   let electricityCost = 0;
 
   for (const item of items) {
-    const itemHours = (Number(item.printDays) || 0) * 24 + (Number(item.printHours) || 0) + (Number(item.printMinutes) || 0) / 60;
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const itemHours = ((Number(item.printDays) || 0) * 24 + (Number(item.printHours) || 0) + (Number(item.printMinutes) || 0) / 60) * qty;
     totalHours += itemHours;
 
     // Localizar material
     const mat = materials.find((m) => m.id === item.materialId);
     const costPerKg = mat ? mat.costPerKg : 0;
-    const itemMaterialCost = ((Number(item.weightGrams) || 0) / 1000) * costPerKg;
+    const itemMaterialCost = (((Number(item.weightGrams) || 0) * qty) / 1000) * costPerKg;
     materialCost += itemMaterialCost;
 
     // Localizar impressora

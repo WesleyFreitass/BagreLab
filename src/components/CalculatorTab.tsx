@@ -36,6 +36,7 @@ import {
   X,
   Sparkles,
   Box,
+  Wrench,
 } from 'lucide-react';
 
 interface CalculatorTabProps {
@@ -385,7 +386,7 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-blue-400/30 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-blue-300" />
+              <Wrench className="w-5 h-5 text-blue-300" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
