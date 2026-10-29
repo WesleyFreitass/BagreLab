@@ -23,6 +23,7 @@ interface LandingPageProps {
     quoteData: Partial<SavedQuote>,
     decision: 'confirm_quote' | 'direct_print'
   ) => Promise<SavedQuote>;
+  onNavigateToMyRequests?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -32,6 +33,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   currentUser,
   onOpenLogin,
   onSubmitClientQuote,
+  onNavigateToMyRequests,
 }) => {
   const scrollToQuoter = () => {
     const el = document.getElementById('orcador-instantaneo');
@@ -169,6 +171,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             currentUser={currentUser}
             onRequireAuth={onOpenLogin}
             onSubmitClientQuote={onSubmitClientQuote}
+            onNavigateToMyRequests={onNavigateToMyRequests}
           />
         </div>
       </section>

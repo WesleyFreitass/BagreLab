@@ -27,6 +27,7 @@ import {
   Share2,
   Send,
   AlertTriangle,
+  Package,
 } from 'lucide-react';
 
 interface MakerWorldTabProps {
@@ -44,6 +45,7 @@ interface MakerWorldTabProps {
     items: QuoteItem[];
     notes?: string;
   }) => void;
+  onNavigateToMyRequests?: () => void;
 }
 
 export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
@@ -54,6 +56,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
   onRequireAuth,
   onSubmitClientQuote,
   onImportToCalculator,
+  onNavigateToMyRequests,
 }) => {
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -200,19 +203,78 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
   }, [selectedProfile, filamentSlots, selectedPrinterId, profitMargin, modelData, printers, materials, settings]);
 
   // Handle client quote submission
-  const handleSubmitDecision = async (decision: 'confirm_quote' | 'direct_print') => {
+  const handleSubmitDecision = async (
+    decision: 'confirm_quote' | 'direct_print',
+    override?: {
+      modelData?: MakerWorldModelData;
+      selectedProfile?: MakerWorldInstance;
+      filamentSlots?: MakerWorldFilamentSlot[];
+      selectedPrinterId?: string;
+    }
+  ) => {
     // Verify authentication
     if (!currentUser.email || !currentUser.phone || currentUser.phone.replace(/\D/g, '').length < 10) {
       setPendingDecision(decision);
+      try {
+        sessionStorage.setItem(
+          'bagrelab_pending_quote_state',
+          JSON.stringify({
+            url,
+            decision,
+            modelData,
+            selectedProfile,
+            filamentSlots,
+            selectedPrinterId,
+          })
+        );
+      } catch {}
       onRequireAuth();
       return;
     }
 
-    if (!selectedProfile || !modelData || !calculation) return;
+    const activeProfile = override?.selectedProfile || selectedProfile;
+    const activeModel = override?.modelData || modelData;
+    const activeSlots = override?.filamentSlots || filamentSlots;
+    const activePrinterId = override?.selectedPrinterId || selectedPrinterId;
+
+    if (!activeProfile || !activeModel || activeSlots.length === 0) return;
 
     setIsSubmitting(true);
 
     try {
+      const currentPrinter = printers.find((p) => p.id === activePrinterId) || printers[0];
+
+      const currentCalc =
+        calculation ||
+        calculateQuote(
+          activeSlots.map((slot, idx) => ({
+            id: `mw-slot-${idx}`,
+            name: `${activeModel.title} [Slot ${idx + 1} - ${slot.originalType}]`,
+            materialId: slot.selectedMaterialId || materials[0]?.id || 'mat-1',
+            printerId: currentPrinter?.id || 'printer-1',
+            weightGrams: slot.usedG,
+            printDays: idx === 0 ? activeProfile.printDays : 0,
+            printHours: idx === 0 ? activeProfile.printHours : 0,
+            printMinutes: idx === 0 ? activeProfile.printMinutes : 0,
+          })),
+          materials,
+          currentPrinter ? [currentPrinter] : printers,
+          {
+            ...settings,
+            defaultProfitMarginPercent: profitMargin,
+          },
+          [
+            { id: 'act-1', name: 'Preparação & Fatiamento MakerWorld', minutes: 10 },
+            { id: 'act-2', name: 'Troca de Mesa & Pós-processamento', minutes: 15 },
+          ],
+          [],
+          profitMargin,
+          settings.taxesPercent || 0,
+          settings.cardFeePercent || 0,
+          settings.onlinePlatformFeePercent || 0,
+          0
+        );
+
       const quotePayload: Partial<SavedQuote> = {
         quoteNumber: `MW-${Date.now().toString().slice(-6)}`,
         customerName: currentUser.name || 'Cliente MakerWorld',
@@ -223,22 +285,22 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         status: decision === 'direct_print' ? 'approved' : 'pending_review',
         clientDecision: decision,
         makerWorldData: {
-          designId: modelData.designId,
-          modelTitle: modelData.title,
-          profileTitle: selectedProfile.title,
-          sourceUrl: modelData.sourceUrl,
-          coverUrl: modelData.coverUrl,
-          filaments: filamentSlots,
+          designId: activeModel.designId,
+          modelTitle: activeModel.title,
+          profileTitle: activeProfile.title,
+          sourceUrl: activeModel.sourceUrl,
+          coverUrl: activeModel.coverUrl,
+          filaments: activeSlots,
         },
-        items: filamentSlots.map((slot, idx) => ({
+        items: activeSlots.map((slot, idx) => ({
           id: `item-${idx}`,
-          name: `${modelData.title} (Slot ${idx + 1} - ${slot.originalType})`,
+          name: `${activeModel.title} (Slot ${idx + 1} - ${slot.originalType})`,
           materialId: slot.selectedMaterialId,
-          printerId: selectedPrinterId || printers[0]?.id || '',
+          printerId: activePrinterId || printers[0]?.id || '',
           weightGrams: slot.usedG,
-          printDays: idx === 0 ? selectedProfile.printDays : 0,
-          printHours: idx === 0 ? selectedProfile.printHours : 0,
-          printMinutes: idx === 0 ? selectedProfile.printMinutes : 0,
+          printDays: idx === 0 ? activeProfile.printDays : 0,
+          printHours: idx === 0 ? activeProfile.printHours : 0,
+          printMinutes: idx === 0 ? activeProfile.printMinutes : 0,
         })),
         laborActivities: [
           { id: 'act-1', name: 'Preparação & Fatiamento MakerWorld', minutes: 10 },
@@ -252,13 +314,13 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         shippingCost: 0,
         notes: `Solicitação via Portal MakerWorld (BagreLab).\nDecisão do Cliente: ${
           decision === 'direct_print' ? 'Pode Imprimir! (Aprovação de Produção)' : 'Confirmar Orçamento Final'
-        }\nPerfil: ${selectedProfile.title}\nCores/Materiais: ${filamentSlots
+        }\nPerfil: ${activeProfile.title}\nCores/Materiais: ${activeSlots
           .map((s) => {
             const mat = materials.find((m) => m.id === s.selectedMaterialId);
             return `${s.originalType} (${s.usedG}g) -> ${mat?.name || ''} [Obs: ${s.customColorName || 'Sem obs'}]`;
           })
           .join(', ')}`,
-        calculation,
+        calculation: currentCalc,
       };
 
       if (onSubmitClientQuote) {
@@ -283,6 +345,30 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
 
   // If user just authenticated and had a pending decision, submit automatically
   useEffect(() => {
+    try {
+      const savedRaw = sessionStorage.getItem('bagrelab_pending_quote_state');
+      if (savedRaw && currentUser.email && currentUser.phone && currentUser.phone.replace(/\D/g, '').length >= 10) {
+        const parsed = JSON.parse(savedRaw);
+        sessionStorage.removeItem('bagrelab_pending_quote_state');
+        if (parsed.modelData && parsed.decision && parsed.selectedProfile) {
+          setModelData(parsed.modelData);
+          setSelectedProfile(parsed.selectedProfile);
+          if (parsed.filamentSlots) setFilamentSlots(parsed.filamentSlots);
+          if (parsed.selectedPrinterId) setSelectedPrinterId(parsed.selectedPrinterId);
+          if (parsed.url) setUrl(parsed.url);
+          setTimeout(() => {
+            handleSubmitDecision(parsed.decision, {
+              modelData: parsed.modelData,
+              selectedProfile: parsed.selectedProfile,
+              filamentSlots: parsed.filamentSlots,
+              selectedPrinterId: parsed.selectedPrinterId,
+            });
+          }, 350);
+          return;
+        }
+      }
+    } catch {}
+
     if (pendingDecision && currentUser.phone && currentUser.phone.replace(/\D/g, '').length >= 10) {
       const dec = pendingDecision;
       setPendingDecision(null);
@@ -435,6 +521,49 @@ Podemos prosseguir com o pedido?`;
           </div>
         )}
       </div>
+
+      {/* In-page confirmation banner after submitting quote */}
+      {submittedQuote && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm sm:text-base text-slate-900">
+                  Pedido #{submittedQuote.quoteNumber} Enviado com Sucesso!
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-800">
+                  {submittedQuote.clientDecision === 'direct_print' ? 'Pode Imprimir' : 'Orçamento'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Sua solicitação foi registrada no sistema da BagreLab. O Maker entrará em contato via WhatsApp.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-xs"
+            >
+              Ver Detalhes do Envio
+            </button>
+            {onNavigateToMyRequests && (
+              <button
+                type="button"
+                onClick={onNavigateToMyRequests}
+                className="px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Minhas Solicitações
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Result Section when Model is Fetched */}
       {modelData && selectedProfile && calculation && (
@@ -879,11 +1008,13 @@ Podemos prosseguir com o pedido?`;
         </div>
       )}
 
-      {/* Success Modal after submitting quote */}
+      {/* Confirmation Modal after submitting quote */}
       {showSuccessModal && submittedQuote && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 text-center space-y-5 animate-in fade-in zoom-in-95 duration-200 my-auto">
+            
+            {/* Success Icon */}
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center ring-8 ring-emerald-50">
               {submittedQuote.clientDecision === 'direct_print' ? (
                 <Rocket className="w-8 h-8 text-emerald-600" />
               ) : (
@@ -891,65 +1022,115 @@ Podemos prosseguir com o pedido?`;
               )}
             </div>
 
+            {/* Title & Badge */}
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 font-mono">
-                {submittedQuote.clientDecision === 'direct_print'
-                  ? '🚀 Pedido Enviado para Fila de Impressão!'
-                  : '📋 Solicitação Registrada com Sucesso!'}
+              <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold tracking-wider uppercase font-mono mb-2">
+                ✅ Confirmação de Envio
               </span>
-              <h3 className="text-xl font-bold text-slate-900 mt-1">
-                {modelData?.title}
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                {submittedQuote.clientDecision === 'direct_print'
+                  ? 'Pedido Enviado para Produção!'
+                  : 'Solicitação de Orçamento Enviada!'}
               </h3>
-              <p className="text-xs text-slate-500 mt-2">
-                Código do Pedido: <strong className="font-mono text-slate-800">#{submittedQuote.quoteNumber}</strong>
+              <p className="text-xs text-slate-500 mt-1.5">
+                Seu pedido foi registrado no sistema e enviado diretamente ao Maker da oficina.
               </p>
             </div>
 
-            <div className="bg-slate-50 rounded-xl p-4 text-xs text-left space-y-2 border border-slate-200">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Cliente:</span>
-                <strong className="text-slate-900">{currentUser.name}</strong>
+            {/* Order Card Preview */}
+            <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 text-xs text-left space-y-3 border border-slate-200">
+              <div className="flex items-start gap-3 pb-3 border-b border-slate-200">
+                {modelData?.coverUrl && (
+                  <img
+                    src={modelData.coverUrl}
+                    alt={modelData.title}
+                    className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-mono text-slate-400">
+                    PEDIDO #{submittedQuote.quoteNumber}
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm truncate">
+                    {modelData?.title}
+                  </h4>
+                  <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                    Perfil: {selectedProfile?.title}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">WhatsApp de Contato:</span>
-                <strong className="text-slate-900 font-mono">{currentUser.phone}</strong>
+
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Decisão Escolhida:</span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded-md text-[11px] ${
+                      submittedQuote.clientDecision === 'direct_print'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {submittedQuote.clientDecision === 'direct_print'
+                      ? 'Pode Imprimir! (Autorizado)'
+                      : 'Confirmar Orçamento Final'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Contato WhatsApp:</span>
+                  <strong className="text-slate-900 font-mono">{currentUser.phone}</strong>
+                </div>
+
+                <div className="flex justify-between items-center border-t border-slate-200 pt-2 font-bold text-sm">
+                  <span className="text-slate-700">Valor Estimado:</span>
+                  <span className="text-emerald-700 font-mono text-base font-black">
+                    {formatCurrency(submittedQuote.calculation.salePriceCash)}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Decisão Escolhida:</span>
-                <span
-                  className={`font-semibold ${
-                    submittedQuote.clientDecision === 'direct_print' ? 'text-emerald-700' : 'text-blue-700'
-                  }`}
-                >
-                  {submittedQuote.clientDecision === 'direct_print'
-                    ? 'Pode Imprimir! (Aprovação de Produção)'
-                    : 'Confirmar Orçamento Final'}
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-slate-200 pt-2 font-bold">
-                <span className="text-slate-700">Valor Estimado:</span>
-                <span className="text-slate-900 font-mono">
-                  {formatCurrency(submittedQuote.calculation.salePriceCash)}
-                </span>
+
+              {/* Informative next step notice */}
+              <div className="bg-blue-50/80 p-2.5 rounded-xl border border-blue-100 text-[11px] text-blue-800 leading-relaxed">
+                💡 O Maker recebeu seus dados e entrará em contato via WhatsApp para confirmar prazos e detalhes de entrega.
               </div>
             </div>
 
-            <div className="space-y-2">
+            {/* CTAs */}
+            <div className="space-y-2 pt-1">
               <button
                 type="button"
                 onClick={handleOpenMakerWhatsApp}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Notificar o Maker no WhatsApp com os Detalhes</span>
               </button>
 
+              {onNavigateToMyRequests && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    onNavigateToMyRequests();
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Acompanhar em Minhas Solicitações</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => setShowSuccessModal(false)}
-                className="w-full py-2.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors cursor-pointer"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setUrl('');
+                  setModelData(null);
+                  setSelectedProfile(null);
+                }}
+                className="w-full py-2.5 px-3 rounded-lg text-slate-500 hover:text-slate-800 font-medium text-xs transition-colors cursor-pointer"
               >
-                <span>Concluir</span>
+                <span>Fazer Novo Orçamento</span>
               </button>
             </div>
           </div>

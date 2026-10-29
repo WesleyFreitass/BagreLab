@@ -328,6 +328,7 @@ export function App() {
             currentUser={currentUser}
             onOpenLogin={() => setIsAuthModalOpen(true)}
             onSubmitClientQuote={handleSubmitClientQuote}
+            onNavigateToMyRequests={() => setActiveTab('my_requests')}
           />
         )}
 
@@ -378,6 +379,7 @@ export function App() {
             onRequireAuth={() => setIsAuthModalOpen(true)}
             onSubmitClientQuote={handleSubmitClientQuote}
             onImportToCalculator={handleImportFromMakerWorld}
+            onNavigateToMyRequests={() => setActiveTab('my_requests')}
           />
         )}
 
