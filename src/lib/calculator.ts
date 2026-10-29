@@ -480,6 +480,76 @@ Para aprovar o início da produção ou tirar dúvidas, basta responder esta men
 }
 
 /**
+ * Gera mensagem formatada no WhatsApp para orçamento REVISADO pelo Maker
+ * Informa com clareza o valor original estimado, o novo valor real pós-fatiamento e a justificativa
+ */
+export function formatWhatsAppRevisedQuoteMessage(params: {
+  quoteNumber: string;
+  customerName: string;
+  modelTitle?: string;
+  originalPrice: number;
+  revisedPrice: number;
+  revisionNotes?: string;
+  items: QuoteItem[];
+  materials?: Material[];
+  shippingCost?: number;
+}): string {
+  const {
+    quoteNumber,
+    customerName,
+    modelTitle,
+    originalPrice,
+    revisedPrice,
+    revisionNotes,
+    items,
+    materials = [],
+    shippingCost = 0,
+  } = params;
+
+  const diff = revisedPrice - originalPrice;
+  let diffText = '';
+  if (Math.abs(diff) < 0.05) {
+    diffText = '*(Valor mantido sem alteração)*';
+  } else if (diff > 0) {
+    diffText = `*(Ajuste de +${formatCurrency(diff)})*`;
+  } else {
+    diffText = `*(Desconto de ${formatCurrency(Math.abs(diff))})*`;
+  }
+
+  const itemsList = items
+    .map((item, idx) => {
+      const mat = materials.find((m) => m.id === item.materialId);
+      const totalTimeHours = item.printDays * 24 + item.printHours + item.printMinutes / 60;
+      return `  ▫️ *${item.name || `Peça ${idx + 1}`}* (${item.weightGrams}g, ${mat?.name || 'Filamento'}, ~${formatHours(totalTimeHours)})`;
+    })
+    .join('\n');
+
+  const notesBlock = revisionNotes
+    ? `\n📝 *Observação Técnica do Maker:*\n"${revisionNotes.trim()}"\n`
+    : '';
+
+  const shippingText = shippingCost > 0 ? `📦 *Frete / Entrega:* ${formatCurrency(shippingCost)}\n` : '';
+
+  return `Olá, *${customerName || 'Cliente'}*! Tudo bem? Aqui é o Wesley da *BagreLab*! 🐟
+
+Fiz a análise técnica e o fatiamento detalhado do seu pedido para o modelo:
+📦 *Peça:* ${modelTitle || 'Impressão 3D'}
+🔖 *Orçamento:* #${quoteNumber}
+
+📊 *Atualização de Valores (Orçamento Real):*
+• Valor Estimado Anterior: ~${formatCurrency(originalPrice)}~
+• *Novo Valor Real Confirmado:* *${formatCurrency(revisedPrice)}* ${diffText}
+${notesBlock}
+📋 *Parâmetros Reais de Produção:*
+${itemsList}
+${shippingText}
+Você também pode conferir e acompanhar seu pedido no nosso portal:
+🌐 https://bagrelab.pampo.tech
+
+Podemos confirmar o pedido com esse novo valor e iniciar a impressão? 🚀`;
+}
+
+/**
  * Formata moeda BRL (R$ 1.234,56)
  */
 export function formatCurrency(value: number): string {

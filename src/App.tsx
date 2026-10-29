@@ -58,7 +58,7 @@ export function App() {
   const [materials, setMaterials] = useState<Material[]>(initialMaterials);
   const [settings, setSettings] = useState<WorkshopSettings>(initialWorkshopSettings);
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
-  const [importedQuoteData, setImportedQuoteData] = useState<{ items?: QuoteItem[]; notes?: string } | null>(null);
+  const [importedQuoteData, setImportedQuoteData] = useState<{ items?: QuoteItem[]; notes?: string; targetQuote?: SavedQuote } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Periodic health check polling
@@ -338,8 +338,18 @@ export function App() {
             quotes={quotes}
             materials={materials}
             printers={printers}
+            settings={settings}
             onUpdateStatus={handleUpdateQuoteStatus}
             onDeleteQuote={handleDeleteQuote}
+            onSaveQuote={handleSaveQuote}
+            onOpenInCalculator={(quote) => {
+              setImportedQuoteData({
+                items: quote.items,
+                notes: quote.notes,
+                targetQuote: quote,
+              });
+              setActiveTab('calculator');
+            }}
           />
         )}
 

@@ -193,6 +193,27 @@ Prazo de Produção: 1 a 2 dias úteis após aprovação.`;
             </div>
           </div>
 
+          {/* Technical Revision Callout Banner if Quote was Revised */}
+          {quote?.isRevised && (
+            <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="font-bold text-blue-900 uppercase tracking-wider font-mono text-[11px] flex items-center gap-1.5">
+                  <span>🛠️ Orçamento Técnico Revisado pelo Maker</span>
+                </span>
+                <span className="text-[11px] font-mono text-slate-600">
+                  Estimativa Inicial: <span className="line-through text-slate-400">{formatCurrency(quote.originalPrice || 0)}</span>
+                  {' ➔ '}
+                  <strong className="text-emerald-700 font-black">{formatCurrency(calculation.finalPriceWithShipping || calculation.salePriceCash)}</strong>
+                </span>
+              </div>
+              {quote.revisionNotes && (
+                <p className="text-slate-700 italic">
+                  <strong>Observação Técnica:</strong> "{quote.revisionNotes}"
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Items Table */}
           <div className="space-y-3">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">

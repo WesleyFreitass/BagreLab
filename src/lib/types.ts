@@ -196,7 +196,7 @@ export interface SavedQuote {
   customerEmail?: string;
   customerContact?: string;
   date: string;
-  status: 'draft' | 'sent' | 'pending_review' | 'approved' | 'in_production' | 'completed' | 'cancelled';
+  status: 'draft' | 'sent' | 'pending_review' | 'revised' | 'approved' | 'in_production' | 'completed' | 'cancelled';
   clientDecision?: 'confirm_quote' | 'direct_print';
   makerWorldData?: {
     designId: number;
@@ -216,5 +216,11 @@ export interface SavedQuote {
   shippingCost: number;
   notes?: string;
   calculation: QuoteCalculationResult;
+  // Revisão Técnica do Maker (Valores Reais pós-fatiamento)
+  isRevised?: boolean;
+  originalPrice?: number;
+  revisedPrice?: number;
+  revisionNotes?: string;
+  revisedAt?: string;
   createdAt?: string;
 }

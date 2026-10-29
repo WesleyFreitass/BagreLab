@@ -34,7 +34,16 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
     return matchEmail || matchPhone;
   });
 
-  const getStatusBadge = (status: SavedQuote['status'], decision?: string) => {
+  const getStatusBadge = (status: SavedQuote['status'], decision?: string, isRevised?: boolean) => {
+    if (isRevised) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Valor Real Confirmado</span>
+        </span>
+      );
+    }
+
     switch (status) {
       case 'in_production':
         return (
@@ -148,10 +157,10 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                       </h4>
                     </div>
 
-                    <div>{getStatusBadge(q.status, q.clientDecision)}</div>
+                    <div>{getStatusBadge(q.status, q.clientDecision, q.isRevised)}</div>
                   </div>
 
-                  {/* Decision Tag */}
+                  {/* Decision Tag & Pricing */}
                   <div className="py-3 text-xs space-y-2 border-b border-slate-100">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Opção Escolhida:</span>
@@ -183,20 +192,68 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between font-mono text-xs pt-1">
-                      <span className="text-slate-500 font-sans">Valor do Orçamento:</span>
-                      <strong className="text-slate-900 text-sm">
-                        {formatCurrency(q.calculation.salePriceCash)}
-                      </strong>
-                    </div>
+                    {/* Old vs New Value Display if revised */}
+                    {q.isRevised ? (
+                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-1.5 mt-2">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="text-slate-500 font-sans">Estimativa Inicial:</span>
+                          <span className="text-slate-400 line-through">
+                            {formatCurrency(q.originalPrice ?? q.calculation.salePriceCash)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between font-mono text-sm border-t border-emerald-200/80 pt-1">
+                          <span className="text-emerald-950 font-sans font-bold flex items-center gap-1 text-xs">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Valor Real Confirmado:</span>
+                          </span>
+                          <strong className="text-emerald-700 text-base font-black">
+                            {formatCurrency(q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0)}
+                          </strong>
+                        </div>
+                        {q.revisionNotes && (
+                          <div className="pt-1.5 border-t border-emerald-100 text-[11px] text-emerald-950 leading-snug">
+                            <span className="font-bold text-emerald-900 block font-mono text-[10px] uppercase">
+                              Observação do Maker:
+                            </span>
+                            <span className="italic text-slate-700">"{q.revisionNotes}"</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between font-mono text-xs pt-1">
+                        <span className="text-slate-500 font-sans">Valor Estimado:</span>
+                        <strong className="text-slate-900 text-sm">
+                          {formatCurrency(q.calculation.salePriceCash)}
+                        </strong>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="pt-4 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400">
-                    Acompanhamento pelo Maker via WhatsApp
-                  </span>
+                <div className="pt-4 flex items-center justify-between gap-2 flex-wrap">
+                  {q.isRevised ? (
+                    <button
+                      onClick={() => {
+                        const targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
+                          `Olá Wesley! Vi a atualização do orçamento #${q.quoteNumber} (Peça: ${
+                            q.makerWorldData?.modelTitle || 'Impressão 3D'
+                          }) para ${formatCurrency(
+                            q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0
+                          )}. Podemos prosseguir!`
+                        )}`;
+                        window.open(targetUrl, '_blank');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-2xs"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      <span>Falar com o Maker no Zap</span>
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-slate-400">
+                      Aguardando conferência técnica pelo Maker
+                    </span>
+                  )}
 
                   {isMw && q.makerWorldData?.sourceUrl && (
                     <a

@@ -43,7 +43,7 @@ interface CalculatorTabProps {
   materials: Material[];
   settings: WorkshopSettings;
   customers: Customer[];
-  importedData?: { items?: QuoteItem[]; notes?: string } | null;
+  importedData?: { items?: QuoteItem[]; notes?: string; targetQuote?: SavedQuote } | null;
   onSaveQuote: (quote: Partial<SavedQuote>) => Promise<void>;
   onQuickSaveCustomer?: (customer: Partial<Customer>) => Promise<Customer>;
 }
@@ -104,6 +104,16 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const [quickMwFeedback, setQuickMwFeedback] = useState<string | null>(null);
 
   useEffect(() => {
+    if (importedData?.targetQuote) {
+      const q = importedData.targetQuote;
+      if (q.customerName) setCustomerName(q.customerName);
+      if (q.customerPhone) setCustomerPhone(q.customerPhone);
+      if (q.customerEmail) setCustomerEmail(q.customerEmail);
+      if (q.quoteNumber) setQuoteNumber(q.quoteNumber);
+      if (q.customerId) setSelectedCustomerId(q.customerId);
+      if (q.profitMarginPercent !== undefined) setProfitMarginPercent(q.profitMarginPercent);
+      if (q.shippingCost !== undefined) setShippingCost(q.shippingCost);
+    }
     if (importedData?.items && importedData.items.length > 0) {
       setItems(importedData.items);
     }
@@ -305,25 +315,59 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await onSaveQuote({
-        quoteNumber,
-        customerId: selectedCustomerId || undefined,
-        customerName,
-        customerPhone,
-        customerEmail,
-        date,
-        items,
-        laborActivities,
-        consumables,
-        profitMarginPercent,
-        taxesPercent,
-        cardFeePercent,
-        onlinePlatformFeePercent,
-        shippingCost,
-        notes,
-        calculation,
-        status: 'draft',
-      });
+      const target = importedData?.targetQuote;
+
+      if (target) {
+        // Revising existing customer quote
+        await onSaveQuote({
+          id: target.id || target._id,
+          quoteNumber: target.quoteNumber || quoteNumber,
+          customerId: target.customerId || selectedCustomerId || undefined,
+          customerName: customerName || target.customerName,
+          customerPhone: customerPhone || target.customerPhone,
+          customerEmail: customerEmail || target.customerEmail,
+          date: target.date || date,
+          items,
+          laborActivities,
+          consumables,
+          profitMarginPercent,
+          taxesPercent,
+          cardFeePercent,
+          onlinePlatformFeePercent,
+          shippingCost,
+          notes,
+          calculation,
+          isRevised: true,
+          originalPrice: target.originalPrice ?? target.calculation?.salePriceCash,
+          revisedPrice: calculation.finalPriceWithShipping || calculation.salePriceCash,
+          revisionNotes: notes,
+          revisedAt: new Date().toISOString(),
+          status: target.status === 'completed' || target.status === 'in_production' ? target.status : 'revised',
+          makerWorldData: target.makerWorldData,
+          clientDecision: target.clientDecision,
+        });
+      } else {
+        await onSaveQuote({
+          quoteNumber,
+          customerId: selectedCustomerId || undefined,
+          customerName,
+          customerPhone,
+          customerEmail,
+          date,
+          items,
+          laborActivities,
+          consumables,
+          profitMarginPercent,
+          taxesPercent,
+          cardFeePercent,
+          onlinePlatformFeePercent,
+          shippingCost,
+          notes,
+          calculation,
+          status: 'draft',
+        });
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err) {
@@ -336,6 +380,40 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   return (
     <div className="space-y-6">
       
+      {/* Revision Banner if opened to adjust an existing client quote */}
+      {importedData?.targetQuote && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-blue-400/30 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-blue-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm sm:text-base text-white">
+                  Ajustando Orçamento Real: #{importedData.targetQuote.quoteNumber}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/40">
+                  Modo Revisão Técnica
+                </span>
+              </div>
+              <p className="text-xs text-blue-200 mt-0.5">
+                Cliente: <strong>{importedData.targetQuote.customerName}</strong> • Valor Original Estimado: <strong className="text-white font-mono">{formatCurrency(importedData.targetQuote.originalPrice ?? importedData.targetQuote.calculation.salePriceCash)}</strong>.
+                Ao salvar nesta tela, o orçamento do cliente será atualizado com os novos parâmetros reais!
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-colors shrink-0 shadow-sm cursor-pointer disabled:opacity-50"
+          >
+            {isSaving ? 'Salvando...' : 'Salvar Revisão do Pedido'}
+          </button>
+        </div>
+      )}
+
       {/* Executive KPI Cards (Stripe Clean Style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         

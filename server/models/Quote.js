@@ -11,7 +11,7 @@ const quoteSchema = new mongoose.Schema(
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
     status: {
       type: String,
-      enum: ['draft', 'sent', 'pending_review', 'approved', 'in_production', 'completed', 'cancelled'],
+      enum: ['draft', 'sent', 'pending_review', 'revised', 'approved', 'in_production', 'completed', 'cancelled'],
       default: 'draft',
     },
     clientDecision: {
@@ -19,6 +19,12 @@ const quoteSchema = new mongoose.Schema(
       enum: ['confirm_quote', 'direct_print', null],
       default: null,
     },
+    // Revisão técnica do Maker (Valores Reais pós-fatiamento)
+    isRevised: { type: Boolean, default: false },
+    originalPrice: { type: Number, default: null },
+    revisedPrice: { type: Number, default: null },
+    revisionNotes: { type: String, default: '' },
+    revisedAt: { type: Date, default: null },
     makerWorldData: {
       designId: Number,
       modelTitle: String,
