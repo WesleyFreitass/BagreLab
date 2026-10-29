@@ -39,7 +39,7 @@ interface MakerWorldTabProps {
     quoteData: Partial<SavedQuote>,
     decision: 'confirm_quote' | 'direct_print'
   ) => Promise<SavedQuote>;
-  onImportToCalculator: (data: {
+  onImportToCalculator?: (data: {
     modelTitle: string;
     items: QuoteItem[];
     notes?: string;
@@ -298,7 +298,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
       .map((f) => `${f.originalType} (${f.usedG}g)`)
       .join(' | ');
 
-    onImportToCalculator({
+    onImportToCalculator?.({
       modelTitle: modelData.title,
       notes: `Importado do MakerWorld (#${modelData.designId})\nPerfil: ${selectedProfile.title}\nFilamentos: ${filamentsSummary}\nLink: ${modelData.sourceUrl}`,
       items: filamentSlots.map((slot, idx) => ({

@@ -17,6 +17,46 @@ interface GoogleAuthModalProps {
   subtitle?: string;
 }
 
+function findSavedPhoneForEmail(email: string): string | null {
+  if (!email) return null;
+  const cleanEmail = email.trim().toLowerCase();
+  
+  // 1. Direct saved phone key
+  const direct = localStorage.getItem(`bagrelab_phone_${cleanEmail}`);
+  if (direct && direct.replace(/\D/g, '').length >= 10) {
+    return direct.replace(/\D/g, '');
+  }
+
+  // 2. Check stored auth user
+  try {
+    const rawAuth = localStorage.getItem('3dcost_auth_user');
+    if (rawAuth) {
+      const parsed = JSON.parse(rawAuth);
+      if (parsed?.email?.trim().toLowerCase() === cleanEmail && parsed?.phone) {
+        const p = parsed.phone.replace(/\D/g, '');
+        if (p.length >= 10) return p;
+      }
+    }
+  } catch {}
+
+  // 3. Check cached customers
+  try {
+    const rawCustomers = localStorage.getItem('3dcost_customers');
+    if (rawCustomers) {
+      const customers = JSON.parse(rawCustomers);
+      if (Array.isArray(customers)) {
+        const found = customers.find((c: any) => c.email?.trim().toLowerCase() === cleanEmail);
+        if (found && found.phone) {
+          const p = found.phone.replace(/\D/g, '');
+          if (p.length >= 10) return p;
+        }
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
 export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
   isOpen,
   onClose,
@@ -68,7 +108,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
         const payload = parseJwt(response.credential);
         if (payload) {
           const finalName = payload.name || payload.given_name || 'Cliente Google';
-          const finalEmail = payload.email || '';
+          const finalEmail = (payload.email || '').trim().toLowerCase();
           const finalAvatar = payload.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}`;
           const finalId = payload.sub || `goog_${Date.now()}`;
 
@@ -76,6 +116,28 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
           setGoogleEmail(finalEmail);
           setGoogleAvatar(finalAvatar);
           setGoogleId(finalId);
+
+          const isMaker = isUserMaker(finalEmail);
+          const savedPhone = findSavedPhoneForEmail(finalEmail);
+
+          // If Maker OR user already has phone registered previously, complete login directly!
+          if (isMaker || savedPhone) {
+            const userPhone = savedPhone || (isMaker ? '11999998888' : '');
+            const authenticatedUser: AuthUser = {
+              id: isMaker ? 'maker-wesley' : finalId,
+              name: finalName,
+              email: finalEmail,
+              phone: userPhone,
+              avatarUrl: finalAvatar,
+              role: isMaker ? 'maker' : 'client',
+              googleId: finalId,
+            };
+            onSuccess(authenticatedUser);
+            onClose();
+            return;
+          }
+
+          // First time client with unknown phone: ask for phone once
           setStep('phone');
         }
       }
@@ -121,12 +183,34 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
 
   const handleManualGoogleSignIn = (presetName?: string, presetEmail?: string) => {
     const finalName = presetName || prompt('Nome completo para identificação:') || 'Cliente Google';
-    const finalEmail = presetEmail || `${finalName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+    const finalEmail = (presetEmail || `${finalName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`).trim().toLowerCase();
+    const finalAvatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}`;
+    const finalId = `goog_${Date.now()}`;
     
     setGoogleName(finalName);
     setGoogleEmail(finalEmail);
-    setGoogleAvatar(`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}`);
-    setGoogleId(`goog_${Date.now()}`);
+    setGoogleAvatar(finalAvatar);
+    setGoogleId(finalId);
+
+    const isMaker = isUserMaker(finalEmail);
+    const savedPhone = findSavedPhoneForEmail(finalEmail);
+
+    if (isMaker || savedPhone) {
+      const userPhone = savedPhone || (isMaker ? '11999998888' : '');
+      const authenticatedUser: AuthUser = {
+        id: isMaker ? 'maker-wesley' : finalId,
+        name: finalName,
+        email: finalEmail,
+        phone: userPhone,
+        avatarUrl: finalAvatar,
+        role: isMaker ? 'maker' : 'client',
+        googleId: finalId,
+      };
+      onSuccess(authenticatedUser);
+      onClose();
+      return;
+    }
+
     setStep('phone');
   };
 
@@ -137,6 +221,11 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({
     if (cleanPhone.length < 10) {
       setPhoneError('Por favor, digite o DDD + número de telefone (mínimo 10 dígitos).');
       return;
+    }
+
+    // Remember phone permanently so we never ask this user again
+    if (googleEmail) {
+      localStorage.setItem(`bagrelab_phone_${googleEmail.trim().toLowerCase()}`, cleanPhone);
     }
 
     const isMaker = isUserMaker(googleEmail);

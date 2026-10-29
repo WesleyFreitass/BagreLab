@@ -35,6 +35,7 @@ import {
   UserPlus,
   X,
   Sparkles,
+  Box,
 } from 'lucide-react';
 
 interface CalculatorTabProps {
@@ -74,19 +75,8 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [whatsAppFeedback, setWhatsAppFeedback] = useState<string | null>(null);
 
-  // Items / Mesas (Default Benchy)
-  const [items, setItems] = useState<QuoteItem[]>([
-    {
-      id: 'item-1',
-      name: '3DBenchy - Calibração',
-      materialId: materials[0]?.id || 'pla-caro',
-      printerId: printers[0]?.id || 'kobra-1',
-      weightGrams: 47,
-      printDays: 0,
-      printHours: 4,
-      printMinutes: 20,
-    },
-  ]);
+  // Items / Mesas - Starts empty per user request
+  const [items, setItems] = useState<QuoteItem[]>([]);
 
   // Labor activities & Consumables
   const [laborActivities, setLaborActivities] = useState<LaborActivity[]>(defaultLaborActivities);
@@ -194,8 +184,7 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   };
 
   const handleRemoveItem = (id: string) => {
-    if (items.length <= 1) return;
-    setItems(items.filter((item) => item.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleUpdateItem = (id: string, updates: Partial<QuoteItem>) => {
@@ -550,20 +539,38 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
             </div>
 
             <div className="space-y-4">
-              {items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3 relative group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px]">
-                        {index + 1}
+              {items.length === 0 ? (
+                <div className="text-center py-10 px-4 border border-dashed border-slate-300 rounded-xl bg-slate-50/60">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2">
+                    <Box className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800">Nenhuma peça adicionada ao orçamento</h4>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
+                    Adicione uma nova peça manualmente ou cole um link do MakerWorld acima para importar pesos e tempos automaticamente.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs cursor-pointer shadow-xs transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar Peça</span>
+                  </button>
+                </div>
+              ) : (
+                items.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 space-y-3 relative group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px]">
+                          {index + 1}
+                        </span>
+                        <span>Item #{index + 1}</span>
                       </span>
-                      <span>Item #{index + 1}</span>
-                    </span>
 
-                    {items.length > 1 && (
                       <button
                         onClick={() => handleRemoveItem(item.id)}
                         className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
@@ -571,8 +578,7 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
-                  </div>
+                    </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
@@ -674,7 +680,8 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
                     </div>
                   </div>
                 </div>
-              ))}
+              ))
+            )}
             </div>
           </div>
 

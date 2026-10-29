@@ -31,7 +31,7 @@ import {
 } from './lib/api';
 import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
 import { Navbar, TabType } from './components/Navbar';
-import { LandingHero } from './components/LandingHero';
+import { LandingPage } from './components/LandingPage';
 import { CalculatorTab } from './components/CalculatorTab';
 import { MakerWorldTab } from './components/MakerWorldTab';
 import { ClientRequestsTab } from './components/ClientRequestsTab';
@@ -47,6 +47,7 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser>(getStoredAuthUser);
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const user = getStoredAuthUser();
+    if (!user.email) return 'home';
     return user.role === 'maker' ? 'client_requests' : 'makerworld';
   });
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -127,6 +128,7 @@ export function App() {
       role: 'client',
     };
     handleUpdateCurrentUser(guest);
+    setActiveTab('home');
   };
 
   // Customer handlers
@@ -317,19 +319,20 @@ export function App() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Landing Hero for Visitors/Guests */}
-        {!currentUser.email && (
-          <LandingHero
+        {/* TELA INICIAL (DEDICADA PARA VISITANTES OU QUANDO TAB === 'home') */}
+        {(!currentUser.email || activeTab === 'home') && (
+          <LandingPage
+            printers={printers}
+            materials={materials}
+            settings={settings}
+            currentUser={currentUser}
             onOpenLogin={() => setIsAuthModalOpen(true)}
-            onStartQuote={() => {
-              setActiveTab('makerworld');
-              const el = document.querySelector('input[type="url"]') as HTMLInputElement;
-              if (el) el.focus();
-            }}
+            onSubmitClientQuote={handleSubmitClientQuote}
           />
         )}
+
         {/* MAKER INBOX: SOLICITAÇÕES DE CLIENTES */}
-        {activeTab === 'client_requests' && (
+        {currentUser.email && activeTab === 'client_requests' && (
           <ClientRequestsTab
             quotes={quotes}
             materials={materials}
@@ -340,7 +343,7 @@ export function App() {
         )}
 
         {/* CLIENT PORTAL: MINHAS SOLICITAÇÕES */}
-        {activeTab === 'my_requests' && (
+        {currentUser.email && activeTab === 'my_requests' && (
           <MyRequestsTab
             quotes={quotes}
             currentUser={currentUser}
@@ -350,8 +353,8 @@ export function App() {
           />
         )}
 
-        {/* CALCULADORA PRINCIPAL */}
-        {activeTab === 'calculator' && (
+        {/* CALCULADORA PRINCIPAL (MAKER) */}
+        {currentUser.email && activeTab === 'calculator' && (
           <CalculatorTab
             printers={printers}
             materials={materials}
@@ -365,8 +368,8 @@ export function App() {
           />
         )}
 
-        {/* ORÇADOR AUTOMÁTICO MAKERWORLD */}
-        {activeTab === 'makerworld' && (
+        {/* ORÇADOR AUTOMÁTICO MAKERWORLD (AUTHENTICATED) */}
+        {currentUser.email && activeTab === 'makerworld' && (
           <MakerWorldTab
             printers={printers}
             materials={materials}
@@ -379,7 +382,7 @@ export function App() {
         )}
 
         {/* GESTÃO DE CLIENTES */}
-        {activeTab === 'customers' && (
+        {currentUser.email && activeTab === 'customers' && (
           <CustomersTab
             customers={customers}
             quotes={quotes}
@@ -392,7 +395,7 @@ export function App() {
         )}
 
         {/* IMPRESSORAS */}
-        {activeTab === 'printers' && (
+        {currentUser.email && activeTab === 'printers' && (
           <PrintersTab
             printers={printers}
             onSavePrinter={handleSavePrinter}
@@ -401,7 +404,7 @@ export function App() {
         )}
 
         {/* FILAMENTOS & MATERIAIS */}
-        {activeTab === 'materials' && (
+        {currentUser.email && activeTab === 'materials' && (
           <MaterialsTab
             materials={materials}
             onSaveMaterial={handleSaveMaterial}
@@ -410,10 +413,20 @@ export function App() {
         )}
 
         {/* CONFIGURAÇÕES DA OFICINA */}
-        {activeTab === 'settings' && (
+        {currentUser.email && activeTab === 'settings' && (
           <SettingsTab
             settings={settings}
             onSaveSettings={handleSaveSettings}
+          />
+        )}
+
+        {/* HISTÓRICO DE ORÇAMENTOS */}
+        {currentUser.email && activeTab === 'quotes' && (
+          <QuotesTab
+            quotes={quotes}
+            materials={materials}
+            printers={printers}
+            onDeleteQuote={handleDeleteQuote}
           />
         )}
 
