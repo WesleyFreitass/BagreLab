@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   bagrelab-app:
     build:
@@ -8,12 +6,17 @@ services:
     container_name: bagrelab-app
     restart: always
     ports:
-      - "${HOST_PORT:-3070}:3000"
+      - "${HOST_PORT:-3140}:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - MONGODB_URI=${MONGODB_URI:-mongodb://host.docker.internal:27017/bagrelab}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://pampoboard-mongodb:27017/bagrelab}
       - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - default
+      - pampoboard_default
+
+networks:
+  pampoboard_default:
+    external: true
