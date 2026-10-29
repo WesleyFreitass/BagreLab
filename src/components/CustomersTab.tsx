@@ -5,7 +5,6 @@ import {
   UserPlus,
   Phone,
   Mail,
-  MapPin,
   Search,
   Edit2,
   Trash2,
@@ -134,7 +133,7 @@ export const CustomersTab: React.FC<CustomersTabProps> = ({
               <tr>
                 <th className="py-3 px-4">Cliente / Contato</th>
                 <th className="py-3 px-4">WhatsApp</th>
-                <th className="py-3 px-4">Localização / Documento</th>
+                <th className="py-3 px-4">Observações</th>
                 <th className="py-3 px-4 text-center">Orçamentos</th>
                 <th className="py-3 px-4 text-right">Ações</th>
               </tr>
@@ -188,23 +187,10 @@ export const CustomersTab: React.FC<CustomersTabProps> = ({
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 text-slate-600">
-                        <div>
-                          {customer.city ? (
-                            <span className="flex items-center gap-1 font-medium text-slate-700">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              {customer.city}
-                              {customer.state ? ` - ${customer.state}` : ''}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic">Não informado</span>
-                          )}
-                          {customer.document && (
-                            <span className="text-[11px] text-slate-400 block mt-0.5">
-                              Doc: {customer.document}
-                            </span>
-                          )}
-                        </div>
+                      <td className="py-3.5 px-4 text-slate-600 text-xs">
+                        <span className="line-clamp-2 text-slate-600">
+                          {customer.notes || <span className="text-slate-400 italic">Sem observações</span>}
+                        </span>
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
@@ -324,58 +310,10 @@ export const CustomersTab: React.FC<CustomersTabProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-slate-700 font-semibold block mb-1">
-                    CPF ou CNPJ
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomer.document || ''}
-                    onChange={(e) => setEditingCustomer({ ...editingCustomer, document: e.target.value })}
-                    placeholder="000.000.000-00"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <label className="text-slate-700 font-semibold block mb-1">Cidade</label>
-                    <input
-                      type="text"
-                      value={editingCustomer.city || ''}
-                      onChange={(e) => setEditingCustomer({ ...editingCustomer, city: e.target.value })}
-                      placeholder="São Paulo"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-700 font-semibold block mb-1">UF</label>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={editingCustomer.state || ''}
-                      onChange={(e) => setEditingCustomer({ ...editingCustomer, state: e.target.value.toUpperCase() })}
-                      placeholder="SP"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="text-slate-700 font-semibold block mb-1">Endereço de Entrega (Opcional)</label>
-                  <input
-                    type="text"
-                    value={editingCustomer.address || ''}
-                    onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
-                    placeholder="Rua, número, bairro, CEP..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
                 <div className="sm:col-span-2">
                   <label className="text-slate-700 font-semibold block mb-1">Observações Internas</label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     value={editingCustomer.notes || ''}
                     onChange={(e) => setEditingCustomer({ ...editingCustomer, notes: e.target.value })}
                     placeholder="Ex: Peças técnicas automotivas, prefere acabamento lixado..."

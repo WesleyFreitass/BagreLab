@@ -222,11 +222,40 @@ router.get('/customers', async (req, res) => {
 
 router.post('/customers', async (req, res) => {
   try {
-    const { name, phone, email, document, city, state, address, notes } = req.body;
+    const { name, phone, email, googleId, avatarUrl, document, city, state, address, notes } = req.body;
+    
+    // Evita duplicar cliente se j existir pelo telefone ou e-mail
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+    let existing = null;
+    if (cleanPhone && cleanPhone.length >= 8) {
+      existing = await CustomerModel.findOne({
+        phone: { $regex: cleanPhone.slice(-8) }
+      });
+    }
+    if (!existing && email) {
+      existing = await CustomerModel.findOne({ email: email.toLowerCase() });
+    }
+    if (!existing && googleId) {
+      existing = await CustomerModel.findOne({ googleId });
+    }
+
+    if (existing) {
+      if (name) existing.name = name;
+      if (phone) existing.phone = phone;
+      if (email) existing.email = email;
+      if (googleId) existing.googleId = googleId;
+      if (avatarUrl) existing.avatarUrl = avatarUrl;
+      if (notes) existing.notes = notes;
+      await existing.save();
+      return res.status(200).json(existing);
+    }
+
     const customer = new CustomerModel({
       name,
       phone,
       email,
+      googleId,
+      avatarUrl,
       document,
       city,
       state,

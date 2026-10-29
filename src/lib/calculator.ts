@@ -34,7 +34,7 @@ export const initialMaterials: Material[] = [
     weightSpoolKg: 1,
     costPerKg: 135,
     type: 'PLA',
-    color: '#3b82f6',
+    color: 'Azul',
   },
   {
     id: 'pla-voolt',
@@ -44,7 +44,7 @@ export const initialMaterials: Material[] = [
     weightSpoolKg: 1,
     costPerKg: 105,
     type: 'PLA',
-    color: '#10b981',
+    color: 'Verde',
   },
   {
     id: 'petg-benser',
@@ -54,7 +54,7 @@ export const initialMaterials: Material[] = [
     weightSpoolKg: 1,
     costPerKg: 119,
     type: 'PETG',
-    color: '#f59e0b',
+    color: 'Laranja',
   },
   {
     id: 'abs-generico',
@@ -64,9 +64,40 @@ export const initialMaterials: Material[] = [
     weightSpoolKg: 1,
     costPerKg: 90,
     type: 'ABS',
-    color: '#8b5cf6',
+    color: 'Roxo',
   },
 ];
+
+// Helper to convert hex colors or return human-readable color names
+export function formatColorLabel(color?: string): string {
+  if (!color) return '';
+  const trimmed = color.trim();
+  const hexMap: Record<string, string> = {
+    '#3b82f6': 'Azul',
+    '#10b981': 'Verde',
+    '#f59e0b': 'Laranja',
+    '#8b5cf6': 'Roxo',
+    '#000000': 'Preto',
+    '#ffffff': 'Branco',
+    '#ef4444': 'Vermelho',
+    '#64748b': 'Cinza',
+    '#eab308': 'Amarelo',
+    '#ec4899': 'Rosa',
+    '#06b6d4': 'Ciano',
+    '#14b8a6': 'Turquesa',
+    '#f97316': 'Laranja',
+    '#84cc16': 'Verde Lima',
+    '#a855f7': 'Roxo',
+    '#6b7280': 'Cinza',
+    '#d97706': 'Âmbar',
+    '#001489': 'Azul Escuro',
+  };
+
+  const lower = trimmed.toLowerCase();
+  if (hexMap[lower]) return hexMap[lower];
+  if (lower.startsWith('#')) return 'Colorido';
+  return trimmed;
+}
 
 export const initialWorkshopSettings: WorkshopSettings = {
   costPerKwh: 0.90, // R$ 0,90 por kWh

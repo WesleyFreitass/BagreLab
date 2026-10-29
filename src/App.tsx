@@ -197,21 +197,33 @@ export function App() {
     quoteData: Partial<SavedQuote>,
     decision: 'confirm_quote' | 'direct_print'
   ): Promise<SavedQuote> => {
-    // 1. Ensure client is saved in customers collection
+    // 1. Ensure client is saved in customers collection (without duplicating)
+    let linkedCustomerId: string | undefined;
     if (currentUser.name && currentUser.phone) {
-      await handleSaveCustomer({
+      const cleanPhone = currentUser.phone.replace(/\D/g, '');
+      const existing = customers.find((c) => {
+        const cPhone = c.phone ? c.phone.replace(/\D/g, '') : '';
+        const matchPhone = cleanPhone && cPhone && (cleanPhone.slice(-8) === cPhone.slice(-8));
+        const matchEmail = currentUser.email && c.email && currentUser.email.toLowerCase() === c.email.toLowerCase();
+        return matchPhone || matchEmail;
+      });
+
+      const customerRecord = await handleSaveCustomer({
+        id: existing?.id,
         name: currentUser.name,
         phone: currentUser.phone,
-        email: currentUser.email,
-        googleId: currentUser.googleId,
-        avatarUrl: currentUser.avatarUrl,
-        notes: `Cliente cadastrado via login com Google / Pedido MakerWorld`,
+        email: currentUser.email || existing?.email,
+        googleId: currentUser.googleId || existing?.googleId,
+        avatarUrl: currentUser.avatarUrl || existing?.avatarUrl,
+        notes: existing?.notes || `Cliente cadastrado via login com Google / Pedido MakerWorld`,
       });
+      linkedCustomerId = customerRecord.id;
     }
 
     // 2. Save quote
     const saved = await handleSaveQuote({
       ...quoteData,
+      customerId: linkedCustomerId,
       customerName: currentUser.name || quoteData.customerName || 'Cliente',
       customerPhone: currentUser.phone || quoteData.customerPhone || '',
       customerEmail: currentUser.email || quoteData.customerEmail || '',
@@ -232,15 +244,24 @@ export function App() {
     handleUpdateCurrentUser(authUser);
     setIsAuthModalOpen(false);
 
-    // Automatically save or update customer record in database
+    // Automatically save or update customer record in database without duplicating
     if (authUser.name && authUser.phone) {
+      const cleanPhone = authUser.phone.replace(/\D/g, '');
+      const existing = customers.find((c) => {
+        const cPhone = c.phone ? c.phone.replace(/\D/g, '') : '';
+        const matchPhone = cleanPhone && cPhone && (cleanPhone.slice(-8) === cPhone.slice(-8));
+        const matchEmail = authUser.email && c.email && authUser.email.toLowerCase() === c.email.toLowerCase();
+        return matchPhone || matchEmail;
+      });
+
       await handleSaveCustomer({
+        id: existing?.id,
         name: authUser.name,
-        email: authUser.email,
+        email: authUser.email || existing?.email,
         phone: authUser.phone,
-        googleId: authUser.googleId,
-        avatarUrl: authUser.avatarUrl,
-        notes: `Cadastrado automaticamente via autenticação Google`,
+        googleId: authUser.googleId || existing?.googleId,
+        avatarUrl: authUser.avatarUrl || existing?.avatarUrl,
+        notes: existing?.notes || `Cadastrado automaticamente via autenticação Google`,
       });
     }
   };

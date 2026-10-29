@@ -495,15 +495,29 @@ export async function saveCustomerApi(customer: Partial<Customer>): Promise<Cust
   let saved: Customer;
   let updatedList: Customer[];
 
+  // Evita duplicação caso o cliente já exista pelo telefone ou e-mail
+  const cleanPhone = customer.phone ? customer.phone.replace(/\D/g, '') : '';
+  const existingIdx = localList.findIndex((c) => {
+    if (customer.id && c.id === customer.id) return true;
+    const cPhone = c.phone ? c.phone.replace(/\D/g, '') : '';
+    const matchPhone = cleanPhone && cPhone && (cleanPhone.slice(-8) === cPhone.slice(-8));
+    const matchEmail = customer.email && c.email && customer.email.toLowerCase() === c.email.toLowerCase();
+    const matchGoogle = customer.googleId && c.googleId && customer.googleId === c.googleId;
+    return matchPhone || matchEmail || matchGoogle;
+  });
+
+  const existingCustomer = existingIdx >= 0 ? localList[existingIdx] : null;
+  const effectiveId = customer.id || existingCustomer?.id;
+
   try {
-    const isEditing = customer.id && !customer.id.startsWith('local-');
-    const endpoint = isEditing ? `/api/customers/${customer.id}` : '/api/customers';
+    const isEditing = Boolean(effectiveId && !effectiveId.startsWith('local-'));
+    const endpoint = isEditing ? `/api/customers/${effectiveId}` : '/api/customers';
     const method = isEditing ? 'PUT' : 'POST';
 
     const res = await fetch(endpoint, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(customer),
+      body: JSON.stringify({ ...customer, id: effectiveId }),
       signal: AbortSignal.timeout(3000),
     });
 
@@ -525,17 +539,14 @@ export async function saveCustomerApi(customer: Partial<Customer>): Promise<Cust
   }
 
   saved = {
+    ...(existingCustomer || {}),
     ...customer,
-    id: customer.id || `local-c-${Date.now()}`,
-    name: customer.name || 'Novo Cliente',
-    phone: customer.phone || '',
-    email: customer.email || '',
-    document: customer.document || '',
-    city: customer.city || '',
-    state: customer.state || '',
-    address: customer.address || '',
-    notes: customer.notes || '',
-    createdAt: customer.createdAt || new Date().toISOString(),
+    id: effectiveId || `local-c-${Date.now()}`,
+    name: customer.name || existingCustomer?.name || 'Novo Cliente',
+    phone: customer.phone || existingCustomer?.phone || '',
+    email: customer.email || existingCustomer?.email || '',
+    notes: customer.notes || existingCustomer?.notes || '',
+    createdAt: customer.createdAt || existingCustomer?.createdAt || new Date().toISOString(),
   } as Customer;
 
   const idx = localList.findIndex((c) => c.id === saved.id);

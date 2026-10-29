@@ -69,7 +69,6 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
   const [quickName, setQuickName] = useState('');
   const [quickPhone, setQuickPhone] = useState('');
   const [quickEmail, setQuickEmail] = useState('');
-  const [quickCity, setQuickCity] = useState('');
 
   // WhatsApp Sending State
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
@@ -235,7 +234,6 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
         name: quickName,
         phone: quickPhone,
         email: quickEmail,
-        city: quickCity,
       });
       setSelectedCustomerId(created.id);
       setCustomerName(created.name);
@@ -251,7 +249,6 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
     setQuickName('');
     setQuickPhone('');
     setQuickEmail('');
-    setQuickCity('');
   };
 
   // Direct WhatsApp send
@@ -1024,17 +1021,6 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
                   value={quickEmail}
                   onChange={(e) => setQuickEmail(e.target.value)}
                   placeholder="carlos@exemplo.com"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-700 font-semibold block mb-1">Cidade / UF (Opcional)</label>
-                <input
-                  type="text"
-                  value={quickCity}
-                  onChange={(e) => setQuickCity(e.target.value)}
-                  placeholder="São Paulo - SP"
                   className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

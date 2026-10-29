@@ -86,20 +86,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <img
               src="/bagrelab-logo.png"
               alt="BagreLab"
-              className="w-9 h-9 rounded-xl object-cover shadow-xs border border-slate-200"
+              className="w-12 h-12 object-contain select-none"
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-slate-900 tracking-tight">BagreLab</span>
+                <span className="text-lg font-black text-slate-900 tracking-tight">BagreLab</span>
               </div>
-              <span className="text-xs text-slate-500 hidden sm:block">
+              <span className="text-[11px] text-slate-500 hidden sm:block">
                 {isMaker ? 'Gestão de Custos & Precificação 3D' : 'Orçamentos Automáticos de Impressão 3D'}
               </span>
             </div>
           </div>
 
-          {/* Navigation Links (Desktop) */}
-          <nav className="hidden lg:flex items-center space-x-1 overflow-x-auto py-1">
+          {/* Navigation Links (Desktop) - No Scrollbar */}
+          <nav className="hidden xl:flex items-center gap-1 py-1">
             {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -109,16 +109,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer relative shrink-0 ${
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer relative shrink-0 ${
                     isActive
-                      ? 'bg-slate-100 text-blue-600 shadow-xs'
+                      ? 'bg-slate-100 text-blue-600 shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
                   <span>{tab.label}</span>
                   {typeof badge === 'number' && badge > 0 && (
-                    <span className="ml-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse">
+                    <span className="ml-0.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse">
                       {badge}
                     </span>
                   )}
@@ -213,8 +213,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         </div>
 
-        {/* Mobile sub-navigation bar */}
-        <div className="flex lg:hidden overflow-x-auto py-2 border-t border-slate-100 gap-1">
+        {/* Mobile / Tablet sub-navigation bar (No Scrollbar) */}
+        <div className="flex xl:hidden overflow-x-auto py-2 border-t border-slate-100 gap-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

@@ -11,7 +11,7 @@ import {
   SavedQuote,
 } from '../lib/types';
 import { parseMakerWorldUrl } from '../lib/api';
-import { calculateQuote, formatCurrency, formatHours } from '../lib/calculator';
+import { calculateQuote, formatCurrency, formatHours, formatColorLabel } from '../lib/calculator';
 import {
   Sparkles,
   Link as LinkIcon,
@@ -600,13 +600,16 @@ Podemos prosseguir com o pedido?`;
                             onChange={(e) => handleSlotMaterialChange(slot.slotIndex, e.target.value)}
                             className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
-                            {materials.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {isMaker
-                                  ? `${m.name} (${m.type} • ${formatCurrency(m.costPerKg)}/kg)`
-                                  : `${m.name} (${m.type}${m.color ? ` - Cor: ${m.color}` : ''})`}
-                              </option>
-                            ))}
+                            {materials.map((m) => {
+                              const colorLabel = formatColorLabel(m.color);
+                              return (
+                                <option key={m.id} value={m.id}>
+                                  {isMaker
+                                    ? `${m.name} (${m.type}${colorLabel ? ` - Cor: ${colorLabel}` : ''} • ${formatCurrency(m.costPerKg)}/kg)`
+                                    : `${m.name} (${m.type}${colorLabel ? ` - Cor: ${colorLabel}` : ''})`}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
 
