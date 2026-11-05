@@ -250,6 +250,7 @@ export function App() {
     // 2. Save quote
     const saved = await handleSaveQuote({
       ...quoteData,
+      quoteNumber: quoteData.quoteNumber || `ORC-${Date.now().toString().slice(-4)}`,
       customerId: linkedCustomerId,
       customerName: currentUser.name || quoteData.customerName || 'Cliente',
       customerPhone: currentUser.phone || quoteData.customerPhone || '',

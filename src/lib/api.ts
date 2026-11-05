@@ -340,12 +340,17 @@ export async function saveQuoteApi(quote: Partial<SavedQuote>): Promise<SavedQuo
   let updatedList: SavedQuote[];
   let saved: SavedQuote;
 
+  const quoteToSave: Partial<SavedQuote> = {
+    ...quote,
+    quoteNumber: quote.quoteNumber || `ORC-${Date.now().toString().slice(-4)}`,
+  };
+
   try {
-    if (quote.id && !quote.id.startsWith('local-')) {
-      const res = await fetch(`/api/quotes/${quote.id}`, {
+    if (quoteToSave.id && !quoteToSave.id.startsWith('local-')) {
+      const res = await fetch(`/api/quotes/${quoteToSave.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(quote),
+        body: JSON.stringify(quoteToSave),
       });
       if (res.ok) {
         const data = await res.json();
@@ -353,12 +358,15 @@ export async function saveQuoteApi(quote: Partial<SavedQuote>): Promise<SavedQuo
         updatedList = localList.map((q) => (q.id === saved.id ? saved : q));
         localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(updatedList));
         return saved;
+      } else {
+        const errText = await res.text();
+        console.error('API PUT /quotes error:', res.status, errText);
       }
     } else {
       const res = await fetch('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(quote),
+        body: JSON.stringify(quoteToSave),
       });
       if (res.ok) {
         const data = await res.json();
@@ -366,16 +374,19 @@ export async function saveQuoteApi(quote: Partial<SavedQuote>): Promise<SavedQuo
         updatedList = [saved, ...localList];
         localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(updatedList));
         return saved;
+      } else {
+        const errText = await res.text();
+        console.error('API POST /quotes error:', res.status, errText);
       }
     }
-  } catch {
-    // offline
+  } catch (err) {
+    console.warn('API /quotes offline or unreachable, falling back to localStorage:', err);
   }
 
   saved = {
-    ...quote,
-    id: quote.id || `local-q-${Date.now()}`,
-    quoteNumber: quote.quoteNumber || `ORC-${Date.now().toString().slice(-4)}`,
+    ...quoteToSave,
+    id: quoteToSave.id || `local-q-${Date.now()}`,
+    quoteNumber: quoteToSave.quoteNumber || `ORC-${Date.now().toString().slice(-4)}`,
     customerName: quote.customerName || 'Cliente',
     date: quote.date || new Date().toISOString().split('T')[0],
     status: quote.status || 'draft',

@@ -205,7 +205,9 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
     setIsSubmitting(true);
 
     try {
+      const generatedQuoteNumber = `ORC-${Date.now().toString().slice(-4)}`;
       const quotePayload: Partial<SavedQuote> = {
+        quoteNumber: generatedQuoteNumber,
         customerId: currentUser.id || currentUser.googleId || undefined,
         customerName: currentUser.name || 'Cliente BagreLab',
         customerPhone: currentUser.phone,

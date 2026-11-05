@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 
 const quoteSchema = new mongoose.Schema(
   {
-    quoteNumber: { type: String, required: true },
+    quoteNumber: {
+      type: String,
+      required: true,
+      default: () => `ORC-${Date.now().toString().slice(-4)}`,
+    },
     customerId: { type: String, default: null },
     customerName: { type: String, required: true, default: 'Cliente' },
     customerPhone: { type: String, default: '' },

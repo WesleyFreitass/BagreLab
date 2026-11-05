@@ -184,6 +184,9 @@ router.get('/quotes', async (req, res) => {
 
 router.post('/quotes', async (req, res) => {
   try {
+    if (!req.body.quoteNumber) {
+      req.body.quoteNumber = `ORC-${Date.now().toString().slice(-4)}`;
+    }
     const quote = new QuoteModel(req.body);
     await quote.save();
     res.status(201).json(quote);
