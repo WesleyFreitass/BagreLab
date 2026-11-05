@@ -196,18 +196,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       </div>
 
-      {/* Sub-barra de Módulos da Oficina do Maker (Posicionada exatamente no local indicado, estilo ficha técnica) */}
+      {/* Sub-barra de Módulos da Oficina do Maker */}
       {isMaker && (
         <div className="bg-[#DFD6C5] border-t border-[#C8BFA8] px-4 sm:px-6 py-2 shadow-inner">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="font-mono-tech text-[10px] font-bold uppercase tracking-wider text-[#4A4239] flex items-center gap-1.5 bg-[#D5CBB8] px-2.5 py-1 rounded border border-[#A0988A]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1E3E24] animate-pulse" />
-                OFICINA // MAKER:
-              </span>
-            </div>
-
-            <nav className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="max-w-6xl mx-auto overflow-x-auto no-scrollbar">
+            <nav className="flex items-center gap-1.5 sm:gap-2 no-scrollbar">
               {makerSubTabs.map((item) => {
                 const Icon = item.icon;
                 const isSel = activeTab === item.id;
