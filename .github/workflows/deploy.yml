@@ -31,4 +31,4 @@ jobs:
               git clone https://github.com/${{ github.repository }}.git .
             fi
             docker compose up -d --build
-            echo "✅ [CI/CD] Deploy do BagreLab concluído com sucesso na porta 3070!"
+            echo "✅ [CI/CD] Deploy do BagreLab concluído com sucesso na porta 3140!"
