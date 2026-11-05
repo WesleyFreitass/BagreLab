@@ -152,7 +152,9 @@ export default defineConfig({
     makerworldDevPlugin(),
   ],
   server: {
-    port: 5173,
+    port: 5174,
+    strictPort: false,
+    host: true,
     proxy: {
       '/api': {
         target: process.env.BACKEND_URL || 'https://bagrelab.pampo.tech',

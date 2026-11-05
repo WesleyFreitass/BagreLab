@@ -60,8 +60,8 @@ export const CalculatorTab: React.FC<CalculatorTabProps> = ({
 }) => {
   // Quote Header & Customer
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  const [customerName, setCustomerName] = useState('Wesley Freitas');
-  const [customerPhone, setCustomerPhone] = useState('11999998888');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [quoteNumber, setQuoteNumber] = useState(() => `ORC-${Date.now().toString().slice(-4)}`);
   const [date] = useState(() => new Date().toISOString().split('T')[0]);

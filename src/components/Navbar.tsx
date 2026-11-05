@@ -1,19 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Calculator,
-  Sparkles,
   Users,
   Printer as PrinterIcon,
   Layers,
   Settings,
   FileText,
-  Database,
   Inbox,
   Package,
-  LogIn,
   LogOut,
-  Phone,
-  Home,
 } from 'lucide-react';
 import { AuthUser } from '../lib/types';
 
@@ -37,12 +32,12 @@ interface NavbarProps {
   pendingRequestsCount?: number;
   onOpenAuthModal: () => void;
   onLogout: () => void;
+  onSwitchUser?: (user: AuthUser) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
-  isBackendConnected,
   currentUser,
   pendingRequestsCount = 0,
   onOpenAuthModal,
@@ -50,211 +45,188 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const isMaker = currentUser.role === 'maker';
   const isLoggedIn = Boolean(currentUser.email);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  // Navigation tabs depending on active role
-  const makerTabs = [
-    {
-      id: 'client_requests' as TabType,
-      label: 'Solicitações',
-      icon: Inbox,
-      badge: pendingRequestsCount,
-    },
-    { id: 'calculator' as TabType, label: 'Calculadora', icon: Calculator },
-    { id: 'makerworld' as TabType, label: 'MakerWorld', icon: Sparkles },
-    { id: 'customers' as TabType, label: 'Clientes', icon: Users },
+  const makerSubTabs = [
+    { id: 'client_requests' as TabType, label: 'Solicitações (Inbox)', icon: Inbox, badge: pendingRequestsCount },
+    { id: 'calculator' as TabType, label: 'Calculadora DRE', icon: Calculator },
+    { id: 'materials' as TabType, label: 'Estoque Filamentos', icon: Layers },
     { id: 'printers' as TabType, label: 'Impressoras', icon: PrinterIcon },
-    { id: 'materials' as TabType, label: 'Filamentos', icon: Layers },
-    { id: 'settings' as TabType, label: 'Oficina', icon: Settings },
+    { id: 'customers' as TabType, label: 'Clientes', icon: Users },
+    { id: 'settings' as TabType, label: 'Configurações', icon: Settings },
     { id: 'quotes' as TabType, label: 'Histórico', icon: FileText },
   ];
 
-  const clientTabs = [
-    { id: 'makerworld' as TabType, label: 'Orçar no MakerWorld', icon: Sparkles },
-    { id: 'my_requests' as TabType, label: 'Minhas Solicitações', icon: Package },
-  ];
-
-  const visibleTabs = isMaker ? makerTabs : clientTabs;
-
   return (
-    <header className="relative bg-gradient-to-r from-[#091b2c] via-[#102a45] to-[#183959] text-white border-b border-[#1b3e64] sticky top-0 z-30 shadow-md no-print overflow-hidden">
-      
-      {/* Oceanic ripples and wave background decoration */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-20 select-none"
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="none"
-        viewBox="0 0 1200 120"
-      >
-        <path
-          d="M0,0 C150,80 350,-40 500,40 C650,110 900,10 1200,50 L1200,0 L0,0 Z"
-          fill="rgba(255,255,255,0.08)"
-        />
-        <path
-          d="M0,35 C300,110 600,0 900,65 C1050,100 1150,45 1200,75 L1200,120 L0,120 Z"
-          fill="rgba(255,255,255,0.05)"
-        />
-        <circle cx="70" cy="30" r="3.5" fill="rgba(255,255,255,0.18)" />
-        <circle cx="210" cy="75" r="2.5" fill="rgba(255,255,255,0.14)" />
-        <circle cx="580" cy="20" r="4" fill="rgba(255,255,255,0.12)" />
-        <circle cx="850" cy="85" r="2" fill="rgba(255,255,255,0.15)" />
-        <circle cx="1050" cy="40" r="3.5" fill="rgba(255,255,255,0.15)" />
-      </svg>
-
-      {/* Top Bar: Brand + User Profile + Cloud Status */}
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          
-          {/* Logo & Brand */}
-          <div
-            onClick={() => {
-              if (!isLoggedIn) setActiveTab('home');
-              else if (isMaker) setActiveTab('client_requests');
-              else setActiveTab('makerworld');
-            }}
-            className="flex items-center gap-2.5 sm:gap-3 shrink-0 cursor-pointer group"
+    <header className="relative z-20 bg-[#E6E0D2] border-b-2 border-[#7E7162] no-print">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        
+        {/* Logo */}
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab(isLoggedIn ? (isMaker ? 'client_requests' : 'makerworld') : 'home')}
+            className="flex items-center gap-3 group cursor-pointer text-left"
           >
-            <div className="relative">
-              <img
-                src="/bagrelab-logo.png"
-                alt="BagreLab"
-                className="w-10 h-10 sm:w-11 sm:h-11 object-contain select-none rounded-xl ring-1 ring-white/20 shadow-sm transition-transform group-hover:scale-105"
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-base sm:text-lg font-black text-white tracking-tight leading-none drop-shadow-xs">
-                  BagreLab
-                </span>
-                {isMaker && (
-                  <span className="bg-blue-500/20 text-blue-200 border border-blue-400/30 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
-                    Maker
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] sm:text-[11px] text-blue-200/80 hidden xs:block mt-0.5 font-normal">
-                {isMaker ? 'Gestão & Precificação 3D' : 'Orçamentos Automáticos de Impressão 3D'}
-              </span>
-            </div>
-          </div>
-
-          {/* Right Area: User Profile, Login Button & Cloud Status */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            
-            {/* Cloud Status Indicator */}
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] sm:text-[11px] font-medium backdrop-blur-xs transition-colors ${
-                isBackendConnected
-                  ? 'bg-emerald-950/70 text-emerald-300 border-emerald-500/40 shadow-xs'
-                  : 'bg-amber-950/70 text-amber-300 border-amber-500/40'
-              }`}
-              title={
-                isBackendConnected
-                  ? 'Conectado à nuvem VPS (MongoDB Ativo)'
-                  : 'Modo Offline: Armazenamento Local'
-              }
+            <img
+              src="/bagre-foco-silhueta-preto-transparente.png"
+              alt="BagreLab Ícone"
+              className="h-12 sm:h-13 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+            />
+            <span
+              style={{ fontFamily: "'Unbounded', sans-serif" }}
+              className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#221E1B]"
             >
-              {isBackendConnected ? (
-                <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="hidden sm:inline">Nuvem Ativa</span>
-                </>
-              ) : (
-                <>
-                  <Database className="w-3 h-3 text-amber-400" />
-                  <span className="hidden sm:inline">Modo Local</span>
-                </>
+              BagreLab
+            </span>
+          </button>
+        </div>
+
+        {/* Navegação Principal */}
+        <nav className="flex items-center h-full space-x-1 sm:space-x-3">
+          {/* Início */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('home')}
+            className={`px-3 py-1.5 rounded-md text-sm sm:text-base cursor-pointer transition-colors ${
+              activeTab === 'home'
+                ? 'font-bold text-[#1E3E24] bg-[#DFD6C5]'
+                : 'font-medium text-[#5C5349] hover:text-[#221E1B] hover:bg-[#DFD6C5]/40'
+            }`}
+          >
+            Início
+          </button>
+
+          {/* Orçar no MakerWorld */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('makerworld')}
+            className={`px-3 py-1.5 rounded-md text-sm sm:text-base cursor-pointer transition-colors ${
+              activeTab === 'makerworld'
+                ? 'font-bold text-[#1E3E24] bg-[#DFD6C5]'
+                : 'font-medium text-[#5C5349] hover:text-[#221E1B] hover:bg-[#DFD6C5]/40'
+            }`}
+          >
+            Orçar no MakerWorld
+          </button>
+
+          {/* Minhas Solicitações */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isLoggedIn) onOpenAuthModal();
+              else setActiveTab('my_requests');
+            }}
+            className={`px-3 py-1.5 rounded-md text-sm sm:text-base cursor-pointer transition-colors ${
+              activeTab === 'my_requests'
+                ? 'font-bold text-[#1E3E24] bg-[#DFD6C5]'
+                : 'font-medium text-[#5C5349] hover:text-[#221E1B] hover:bg-[#DFD6C5]/40'
+            }`}
+          >
+            Minhas Solicitações
+          </button>
+        </nav>
+
+        {/* Perfil / Login */}
+        <div className="flex items-center gap-3">
+          {isLoggedIn ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 font-mono-tech text-xs sm:text-sm font-semibold text-[#221E1B] bg-[#DFD6C5] px-3 py-1.5 rounded border border-[#8E8070] cursor-pointer hover:bg-[#D5CBB8] transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#1E3E24]"></span>
+                <span className="truncate max-w-[130px]">
+                  {currentUser.name ? `${currentUser.name.split(' ')[0]} / @bagre` : 'Wesley / @bagre'}
+                </span>
+                <span className="text-[10px]">▼</span>
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 paper-card p-3 z-50 text-xs space-y-2">
+                  <div className="border-b border-[#D5CBB8] pb-2">
+                    <div className="font-heading font-bold text-sm text-[#221E1B]">{currentUser.name}</div>
+                    <div className="font-mono-tech text-[11px] text-[#5C5349]">{currentUser.email}</div>
+                    {currentUser.phone && (
+                      <div className="font-mono-tech text-[11px] text-[#1E3E24] font-semibold mt-0.5">
+                        {currentUser.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('my_requests');
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-[#221E1B] hover:bg-[#EFECE4] text-left font-semibold cursor-pointer"
+                  >
+                    <Package className="w-3.5 h-3.5 text-[#1E3E24]" />
+                    <span>Meus Pedidos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLogout();
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded text-rose-700 hover:bg-rose-100 text-left font-semibold cursor-pointer border-t border-[#D5CBB8] pt-2"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sair da Conta</span>
+                  </button>
+                </div>
               )}
             </div>
-
-            {/* User Profile / Auth State */}
-            {isLoggedIn ? (
-              <div className="flex items-center gap-2 sm:gap-2.5 pl-2 border-l border-white/15">
-                {currentUser.avatarUrl ? (
-                  <img
-                    src={currentUser.avatarUrl}
-                    alt={currentUser.name}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/30 object-cover ring-1 ring-blue-400/20"
-                  />
-                ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-500/30 text-blue-100 flex items-center justify-center font-bold text-xs border border-white/20">
-                    {currentUser.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                
-                <div className="hidden md:block text-left">
-                  <div className="text-xs font-bold text-white leading-tight truncate max-w-[130px]">
-                    {currentUser.name}
-                  </div>
-                  {currentUser.phone && (
-                    <div className="text-[10px] font-mono text-emerald-300 flex items-center gap-1">
-                      <Phone className="w-2.5 h-2.5 text-emerald-400" />
-                      <span>{currentUser.phone}</span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={onLogout}
-                  title="Sair / Trocar Conta"
-                  className="p-1.5 text-blue-200/80 hover:text-rose-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onOpenAuthModal}
-                className="inline-flex items-center gap-1.5 sm:gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 sm:px-4 py-2 rounded-lg shadow-sm transition-all cursor-pointer ring-1 ring-white/20"
-              >
-                <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span>Entrar com Google</span>
-              </button>
-            )}
-          </div>
-
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className="flex items-center gap-2 font-mono-tech text-xs sm:text-sm font-semibold text-[#221E1B] bg-[#DFD6C5] px-3 py-1.5 rounded border border-[#8E8070] cursor-pointer hover:bg-[#D5CBB8] transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#5C5349]"></span>
+              <span>Login / @bagre</span>
+              <span className="text-[10px]">▼</span>
+            </button>
+          )}
         </div>
+
       </div>
 
-      {/* Navigation Bar for Logged-In Users (Maker or Client) */}
-      {isLoggedIn && (
-        <div className="relative z-10 border-t border-white/10 bg-[#071524]/90 backdrop-blur-md">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <nav className="flex items-center gap-1 py-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              
-              {/* Optional Home button */}
-              <button
-                onClick={() => setActiveTab('home')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  activeTab === 'home'
-                    ? 'bg-blue-600 text-white font-bold shadow-xs ring-1 ring-blue-400/40'
-                    : 'text-blue-200/70 hover:text-white hover:bg-white/10'
-                }`}
-                title="Página Inicial"
-              >
-                <Home className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Início</span>
-              </button>
+      {/* Sub-barra de Módulos da Oficina do Maker (Posicionada exatamente no local indicado, estilo ficha técnica) */}
+      {isMaker && (
+        <div className="bg-[#DFD6C5] border-t border-[#C8BFA8] px-4 sm:px-6 py-2 shadow-inner">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-mono-tech text-[10px] font-bold uppercase tracking-wider text-[#4A4239] flex items-center gap-1.5 bg-[#D5CBB8] px-2.5 py-1 rounded border border-[#A0988A]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1E3E24] animate-pulse" />
+                OFICINA // MAKER:
+              </span>
+            </div>
 
-              {visibleTabs.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                const badge = (tab as any).badge;
-
+            <nav className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              {makerSubTabs.map((item) => {
+                const Icon = item.icon;
+                const isSel = activeTab === item.id;
                 return (
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? 'bg-blue-600 text-white font-bold shadow-xs ring-1 ring-blue-400/40'
-                        : 'text-blue-200/70 hover:text-white hover:bg-white/10'
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono-tech text-xs transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      isSel
+                        ? 'bg-[#1E3E24] text-[#F6F3EC] font-bold shadow-inner border border-[#112615]'
+                        : 'bg-[#EFECE4] text-[#3D352E] hover:bg-[#F6F3EC] hover:text-[#221E1B] border border-[#8E8070] font-semibold'
                     }`}
                   >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-blue-300/70'}`} />
-                    <span>{tab.label}</span>
-                    {typeof badge === 'number' && badge > 0 && (
-                      <span className="ml-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse shadow-xs">
-                        {badge}
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{item.label}</span>
+                    {typeof item.badge === 'number' && item.badge > 0 && (
+                      <span className="bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono-tech">
+                        {item.badge}
                       </span>
                     )}
                   </button>

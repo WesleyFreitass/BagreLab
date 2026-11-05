@@ -388,32 +388,41 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {isRevised && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
-                            <Wrench className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>REVISADO PELO MAKER</span>
-                          </span>
-                        )}
+                        <span className="text-xs font-mono font-bold text-slate-500">#{quote.quoteNumber}</span>
+                        <span className="text-xs text-slate-400">• {quote.date}</span>
 
-                        {isDirectPrint ? (
+                        {/* Status Operacional Unificado (Apenas 1 badge principal) */}
+                        {quote.status === 'completed' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Concluído</span>
+                          </span>
+                        ) : quote.status === 'in_production' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <Play className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Em Produção</span>
+                          </span>
+                        ) : isRevised ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                            <Wrench className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Orçamento Revisado</span>
+                          </span>
+                        ) : isDirectPrint ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                             <Play className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>PODE IMPRIMIR</span>
+                            <span>Pode Imprimir</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                            <Clock className="w-3.5 h-3.5 text-blue-600" />
-                            <span>CONFIRMAR ORÇAMENTO FINAL</span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                            <Clock className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Aguardando Análise</span>
                           </span>
                         )}
-
-                        <span className="text-xs text-slate-400 font-mono">#{quote.quoteNumber}</span>
-                        <span className="text-xs text-slate-400">• {quote.date}</span>
 
                         {quantity > 1 && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300 font-mono">
                             <Layers className="w-3 h-3 text-slate-500" />
-                            <span>{quantity} unidades</span>
+                            <span>{quantity} un.</span>
                           </span>
                         )}
                       </div>
@@ -438,7 +447,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
                   {/* Right: Value, Payment Status & Production Status */}
                   <div className="text-left sm:text-right space-y-1.5 shrink-0">
-                    {/* Payment Status Badge */}
+                    {/* Status Financeiro */}
                     <div className="flex sm:justify-end">
                       {isPaid ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -446,25 +455,25 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                           <span>PAGO</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>PAGAMENTO PENDENTE</span>
+                          <span>A PAGAR</span>
                         </span>
                       )}
                     </div>
 
-                    {isRevised ? (
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
-                          Estimado: <span className="line-through">{formatCurrency(originalVal)}</span>
-                        </span>
-                        <div className="text-2xl font-black font-mono text-emerald-600 flex items-center gap-1.5 sm:justify-end">
-                          <span>{formatCurrency(currentVal)}</span>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded uppercase">
-                            Real
+                    <div>
+                      {isRevised && Math.abs(priceDiff) >= 0.05 ? (
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
+                            Estimado: <span className="line-through">{formatCurrency(originalVal)}</span>
                           </span>
-                        </div>
-                        {Math.abs(priceDiff) >= 0.05 && (
+                          <div className="text-2xl font-black font-mono text-emerald-600 flex items-center gap-1.5 sm:justify-end">
+                            <span>{formatCurrency(currentVal)}</span>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded uppercase">
+                              Real
+                            </span>
+                          </div>
                           <span
                             className={`text-[10px] font-bold ${
                               priceDiff > 0 ? 'text-amber-700' : 'text-emerald-700'
@@ -472,44 +481,18 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                           >
                             {priceDiff > 0 ? `+${formatCurrency(priceDiff)}` : `-${formatCurrency(Math.abs(priceDiff))}`}
                           </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
-                          Valor Estimado
-                        </span>
-                        <div className="text-2xl font-black font-mono text-slate-900">
-                          {formatCurrency(currentVal)}
                         </div>
-                      </div>
-                    )}
-
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-                        quote.status === 'approved'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : quote.status === 'in_production'
-                          ? 'bg-amber-50 text-amber-700'
-                          : quote.status === 'completed'
-                          ? 'bg-purple-50 text-purple-700'
-                          : quote.status === 'revised'
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      Status: {
-                        quote.status === 'approved'
-                          ? 'Aprovado'
-                          : quote.status === 'in_production'
-                          ? 'Em Produção'
-                          : quote.status === 'completed'
-                          ? 'Concluído'
-                          : quote.status === 'revised'
-                          ? 'Revisado pelo Maker'
-                          : 'Pendente'
-                      }
-                    </span>
+                      ) : (
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
+                            {isRevised ? 'Valor Real' : 'Valor Estimado'}
+                          </span>
+                          <div className="text-2xl font-black font-mono text-slate-900">
+                            {formatCurrency(currentVal)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

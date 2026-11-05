@@ -1,11 +1,170 @@
 @import "tailwindcss";
 
-@layer base {
-  body {
-    background-color: #f8fafc;
-    color: #0f172a;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  }
+@font-face {
+  font-family: 'Unbounded';
+  src: url('/fonts/Unbounded-Variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+:root {
+  --paper-bg: #EAE5D9;
+  --paper-card: #F6F3EC;
+  --kraft-light: #DFD6C5;
+  --kraft-tag: #D6C3A9;
+  --kraft-box: #C6B193;
+  --kraft-box-dark: #AE9777;
+  --ink-dark: #221E1B;
+  --ink-muted: #5C5349;
+  --forest-green: #1E3E24;
+  --forest-hover: #152D19;
+}
+
+body {
+  background-color: var(--paper-bg);
+  color: var(--ink-dark);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-image: 
+    linear-gradient(to right, rgba(34, 30, 27, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 30, 27, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.font-heading {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-logo {
+  font-family: 'Unbounded', sans-serif;
+}
+
+.font-mono-tech {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Bordas e sombras estilo papel técnico e papelão */
+.paper-card {
+  background-color: var(--paper-card);
+  border: 1.5px solid #6E6356;
+  box-shadow: 0 3px 0 rgba(34, 30, 27, 0.12), 0 6px 14px rgba(34, 30, 27, 0.06);
+  border-radius: 4px;
+}
+
+.metric-box {
+  background-color: #EFECE4;
+  border: 1.5px solid #4A4239;
+  border-radius: 4px;
+}
+
+.kraft-chip {
+  background-color: var(--kraft-tag);
+  border: 1.5px solid #5A4E40;
+  box-shadow: 0 2px 0 rgba(34, 30, 27, 0.2);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.kraft-chip:hover {
+  transform: translateY(-1px);
+  background-color: #CEB89A;
+}
+
+.kraft-chip.active {
+  border-color: var(--forest-green);
+  box-shadow: 0 0 0 1.5px var(--forest-green), 0 2px 0 rgba(34, 30, 27, 0.25);
+}
+
+/* Caixa de Fechamento estilo Papelão Kraft */
+.cardboard-box {
+  background-color: var(--kraft-box);
+  border: 2px solid #4A3F33;
+  box-shadow: 0 6px 0 #8C775B, 0 12px 24px rgba(34, 30, 27, 0.18);
+  border-radius: 3px;
+  position: relative;
+}
+
+.cardboard-flap-left {
+  background-color: #B8A182;
+  border: 2px solid #4A3F33;
+  border-bottom: none;
+  transform: skewX(12deg);
+}
+
+.cardboard-flap-right {
+  background-color: #CEBA9E;
+  border: 2px solid #4A3F33;
+  border-bottom: none;
+  transform: skewX(-12deg);
+}
+
+.price-inset {
+  background-color: #DDD0BC;
+  border: 1.5px solid #7A6A56;
+  box-shadow: inset 0 2px 5px rgba(34, 30, 27, 0.12);
+  border-radius: 4px;
+}
+
+/* Textura simulada de rolo de filamento 3D */
+.filament-coil {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,0.18) 0px,
+    rgba(255,255,255,0.18) 2px,
+    rgba(0,0,0,0.22) 2px,
+    rgba(0,0,0,0.22) 4px
+  );
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.35);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Botão Verde Floresta */
+.btn-forest {
+  background-color: var(--forest-green);
+  color: #F6F3EC;
+  border: 1.5px solid #112615;
+  box-shadow: 0 3px 0 #112615;
+  border-radius: 4px;
+  transition: all 0.12s ease;
+}
+
+.btn-forest:hover {
+  background-color: var(--forest-hover);
+  transform: translateY(-1px);
+}
+
+.btn-forest:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #112615;
+}
+
+.btn-paper {
+  background-color: #F6F3EC;
+  color: var(--ink-dark);
+  border: 1.5px solid #4A4239;
+  box-shadow: 0 2px 0 rgba(34, 30, 27, 0.15);
+  border-radius: 4px;
+  transition: all 0.12s ease;
+}
+
+.btn-paper:hover {
+  background-color: #EFECE4;
+}
+
+.btn-paper.selected {
+  background-color: #E3ECE4;
+  border-color: var(--forest-green);
+  box-shadow: 0 0 0 1px var(--forest-green), 0 2px 0 rgba(30, 62, 36, 0.25);
+}
+
+/* Carimbo de Oficina */
+.stamp-badge {
+  border: 1.5px solid var(--forest-green);
+  color: var(--forest-green);
+  background-color: rgba(30, 62, 36, 0.08);
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Custom print styles for quotes */

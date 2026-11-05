@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <!-- BAGRELAB - Mascote Oficial Face-Forward (100% Vetorial Sem Fundo) -->
+  
+  <g id="bagrelab-mascot-official">
+    <!-- 1. CAUDA NO FUNDO (Curvando atrás da cabeça) -->
+    <g id="tail-background">
+      <!-- Corpo dorsal da cauda -->
+      <path d="M 215,140 C 235,115 270,95 305,95 C 315,95 320,105 315,115 C 290,135 250,155 215,160 Z" fill="#526E7A" />
+      <path d="M 245,130 C 270,110 300,100 325,102 C 322,118 290,140 250,155 Z" fill="#D9CDB0" />
+      <!-- Nadadeira Caudal (Lobo Superior e Inferior) -->
+      <path d="M 305,95 C 330,80 348,65 352,65 C 354,72 342,95 325,112 C 345,122 355,138 350,142 C 342,142 322,130 308,118 Z" fill="#D9CDB0" />
+      <path d="M 305,95 C 320,85 338,72 345,70 C 338,88 322,105 310,112 Z" fill="#526E7A" />
+    </g>
+
+    <!-- 2. BARBATANA DORSAL SUPERIOR (Espinho reto para cima) -->
+    <g id="dorsal-fin">
+      <!-- Metade esquerda mais clara -->
+      <path d="M 190,150 L 200,45 L 200,145 Z" fill="#6B8692" />
+      <!-- Metade direita mais escura -->
+      <path d="M 200,45 L 210,150 L 200,145 Z" fill="#526E7A" />
+      <!-- Contorno sutil -->
+      <path d="M 190,150 L 200,45 L 210,150" stroke="#221E1B" stroke-width="2.5" stroke-linejoin="round" />
+    </g>
+
+    <!-- 3. BARBATANAS PEITORAIS LATERAIS -->
+    <g id="pectoral-fins">
+      <!-- Peitoral Esquerda -->
+      <path d="M 130,215 C 105,215 80,222 72,228 C 76,234 105,236 132,234 Z" fill="#D9CDB0" stroke="#221E1B" stroke-width="2" />
+      <!-- Peitoral Direita -->
+      <path d="M 270,215 C 295,215 320,222 328,228 C 324,234 295,236 268,234 Z" fill="#C2B391" stroke="#221E1B" stroke-width="2" />
+    </g>
+
+    <!-- 4. CABEÇA PRINCIPAL DO BAGRE (Visão Frontal com sombreamento dividido) -->
+    <g id="head-main">
+      <!-- Metade Esquerda da Cabeça -->
+      <path d="M 200,115 C 165,120 130,160 124,225 C 124,235 160,250 200,250 L 200,115 Z" fill="#6B8692" />
+      <!-- Metade Direita da Cabeça -->
+      <path d="M 200,115 C 235,120 270,160 276,225 C 276,235 240,250 200,250 L 200,115 Z" fill="#526E7A" />
+      <!-- Contorno externo da cabeça -->
+      <path d="M 124,225 C 130,160 165,120 200,115 C 235,120 270,160 276,225" stroke="#221E1B" stroke-width="3" stroke-linecap="round" />
+      <!-- Linha central da cabeça (vinco dimensional) -->
+      <line x1="200" y1="115" x2="200" y2="250" stroke="#221E1B" stroke-width="1.5" opacity="0.6" />
+    </g>
+
+    <!-- 5. OLHOS DO BAGRE -->
+    <g id="eyes">
+      <!-- Olho Esquerdo -->
+      <ellipse cx="152" cy="202" rx="6.5" ry="9" fill="#221E1B" />
+      <!-- Olho Direito -->
+      <ellipse cx="248" cy="202" rx="6.5" ry="9" fill="#221E1B" />
+    </g>
+
+    <!-- 6. BARRIGA / QUEIXO EM PLACA TAN (Dividida em dois tons) -->
+    <g id="underbelly">
+      <!-- Metade Esquerda (Bege Claro) -->
+      <path d="M 200,240 C 170,240 144,232 136,228 C 144,265 170,285 200,285 L 200,240 Z" fill="#D9CDB0" />
+      <!-- Metade Direita (Bege Escuro) -->
+      <path d="M 200,240 C 230,240 256,232 264,228 C 256,265 230,285 200,285 L 200,240 Z" fill="#C2B391" />
+      <!-- Contorno do Queixo -->
+      <path d="M 136,228 C 144,265 170,285 200,285 C 230,285 256,265 264,228" stroke="#221E1B" stroke-width="2.5" />
+      <!-- Linha da Boca -->
+      <path d="M 132,230 C 160,246 240,246 268,230" stroke="#221E1B" stroke-width="3" stroke-linecap="round" />
+    </g>
+
+    <!-- 7. BARBILHÕES INFERIORES DO QUEIXO (4 pequenos bigodes) -->
+    <g id="chin-whiskers" stroke="#D9CDB0" stroke-width="4.5" stroke-linecap="round" fill="none">
+      <!-- Esquerda exterior -->
+      <path d="M 160,270 C 150,285 138,300 128,308" />
+      <!-- Esquerda interior -->
+      <path d="M 180,280 C 174,298 165,318 152,330" />
+      <!-- Direita interior -->
+      <path d="M 220,280 C 226,298 235,318 248,330" stroke="#C2B391" />
+      <!-- Direita exterior -->
+      <path d="M 240,270 C 250,285 262,300 272,308" stroke="#C2B391" />
+    </g>
+
+    <!-- 8. GRANDES BARBILHÕES PRINCIPAIS (Bigodes laterais em looping fluido) -->
+    <g id="main-whiskers" fill="none" stroke="#526E7A" stroke-width="5" stroke-linecap="round">
+      <!-- Bigode Esquerdo Longo -->
+      <path d="M 140,225 C 100,250 65,280 50,265 C 32,248 45,190 78,162 C 92,150 108,145 110,148" />
+      <!-- Bigode Direito Longo -->
+      <path d="M 260,225 C 300,250 335,280 350,265 C 368,248 355,190 322,162 C 308,150 292,145 290,148" />
+    </g>
+  </g>
+</svg>

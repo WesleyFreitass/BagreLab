@@ -30,6 +30,7 @@ import {
   isUserMaker,
 } from './lib/api';
 import { initialCustomers, initialPrinters, initialMaterials, initialWorkshopSettings } from './lib/calculator';
+import { BlueprintBackground } from './components/BlueprintBackground';
 import { Navbar, TabType } from './components/Navbar';
 import { LandingPage } from './components/LandingPage';
 import { CalculatorTab } from './components/CalculatorTab';
@@ -42,6 +43,7 @@ import { MaterialsTab } from './components/MaterialsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { QuotesTab } from './components/QuotesTab';
 import { GoogleAuthModal } from './components/GoogleAuthModal';
+import { LocalRoleSwitcher } from './components/LocalRoleSwitcher';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser>(getStoredAuthUser);
@@ -59,6 +61,7 @@ export function App() {
   const [settings, setSettings] = useState<WorkshopSettings>(initialWorkshopSettings);
   const [quotes, setQuotes] = useState<SavedQuote[]>([]);
   const [importedQuoteData, setImportedQuoteData] = useState<{ items?: QuoteItem[]; notes?: string; targetQuote?: SavedQuote } | null>(null);
+  const [makerWorldTargetUrl, setMakerWorldTargetUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Periodic health check polling
@@ -307,7 +310,10 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#ece5db] text-[#1e1b18] flex flex-col font-sans relative selection:bg-[#1b3a28] selection:text-white">
+      {/* Blueprint & Technical Drawings Background Watermark */}
+      <BlueprintBackground />
+
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -316,11 +322,12 @@ export function App() {
         pendingRequestsCount={pendingRequestsCount}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onSwitchUser={handleUpdateCurrentUser}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* TELA INICIAL (DEDICADA PARA VISITANTES OU QUANDO TAB === 'home') */}
-        {(!currentUser.email || activeTab === 'home') && (
+      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-7">
+        {/* TELA INICIAL (QUANDO TAB === 'home') */}
+        {activeTab === 'home' && (
           <LandingPage
             printers={printers}
             materials={materials}
@@ -328,6 +335,10 @@ export function App() {
             currentUser={currentUser}
             onOpenLogin={() => setIsAuthModalOpen(true)}
             onSubmitClientQuote={handleSubmitClientQuote}
+            onNavigateToMakerWorld={(targetUrl) => {
+              if (targetUrl) setMakerWorldTargetUrl(targetUrl);
+              setActiveTab('makerworld');
+            }}
             onNavigateToMyRequests={() => setActiveTab('my_requests')}
           />
         )}
@@ -354,7 +365,7 @@ export function App() {
         )}
 
         {/* CLIENT PORTAL: MINHAS SOLICITAÇÕES */}
-        {currentUser.email && activeTab === 'my_requests' && (
+        {activeTab === 'my_requests' && (
           <MyRequestsTab
             quotes={quotes}
             currentUser={currentUser}
@@ -380,13 +391,14 @@ export function App() {
           />
         )}
 
-        {/* ORÇADOR AUTOMÁTICO MAKERWORLD (AUTHENTICATED) */}
-        {currentUser.email && activeTab === 'makerworld' && (
+        {/* ORÇADOR AUTOMÁTICO MAKERWORLD (AUTHENTICATED OU GUEST) */}
+        {activeTab === 'makerworld' && (
           <MakerWorldTab
             printers={printers}
             materials={materials}
             settings={settings}
             currentUser={currentUser}
+            initialUrl={makerWorldTargetUrl}
             onRequireAuth={() => setIsAuthModalOpen(true)}
             onSubmitClientQuote={handleSubmitClientQuote}
             onImportToCalculator={handleImportFromMakerWorld}
@@ -442,16 +454,6 @@ export function App() {
             onDeleteQuote={handleDeleteQuote}
           />
         )}
-
-        {/* HISTÓRICO DE ORÇAMENTOS */}
-        {activeTab === 'quotes' && (
-          <QuotesTab
-            quotes={quotes}
-            materials={materials}
-            printers={printers}
-            onDeleteQuote={handleDeleteQuote}
-          />
-        )}
       </main>
 
       {/* Google Auth & WhatsApp Modal */}
@@ -463,16 +465,30 @@ export function App() {
         subtitle="Informe seu WhatsApp com DDD para o Maker poder entrar em contato e enviar a proposta oficial."
       />
 
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 no-print mt-auto">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            <strong>BagreLab</strong> • Sistema de Engenharia de Custos e Orçamentos para Impressão 3D
-          </span>
-          <span className="text-slate-400">
-            © {new Date().getFullYear()} BagreLab • Orçamentos Profissionais
-          </span>
+      {/* RODAPÉ COM SELOS DE OFICINA */}
+      <footer className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between text-xs font-mono-tech text-[#5C5349] border-t border-[#C8BFA8] no-print mt-auto gap-2">
+        <div className="flex items-center gap-2">
+          <img
+            src="/bagre-foco-silhueta-preto-transparente.png"
+            alt="BagreLab"
+            className="h-6 w-auto object-contain opacity-80"
+          />
+          <div className="flex items-center gap-1.5">
+            <span className="font-logo font-bold tracking-wide text-[#221E1B]">BAGRELAB</span>
+            <span className="opacity-70">// SISTEMA DE ORÇAMENTO DE IMPRESSÃO 3D</span>
+          </div>
+        </div>
+        <div>
+          <span>PAMPO TECH • BLUMENAU/SC</span>
         </div>
       </footer>
+
+      {/* Seletor de Papéis restrito exclusivamente a desenvolvimento local */}
+      <LocalRoleSwitcher
+        currentUser={currentUser}
+        onSwitchUser={handleUpdateCurrentUser}
+        setActiveTab={setActiveTab}
+      />
     </div>
   );
 }
