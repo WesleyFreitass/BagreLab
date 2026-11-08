@@ -480,7 +480,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </button>
           </div>
           <code className="block bg-white p-2 rounded border border-slate-200 text-[11px] text-slate-800 font-mono select-all">
-            {typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/mercadopago` : 'http://187.127.17.88:3140/api/webhooks/mercadopago'}
+            {typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/mercadopago` : 'https://bagrelab.pampo.tech/api/webhooks/mercadopago'}
           </code>
           <p className="text-[11px] text-slate-500">
             Cadastre esta URL em <strong>Notificações Webhook</strong> no Mercado Pago selecionando o evento <code>Pagamentos (payment)</code> para confirmação automática em tempo real.

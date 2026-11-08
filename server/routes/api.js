@@ -532,10 +532,8 @@ router.post('/payments/pix', async (req, res) => {
       });
     }
 
-    // Determinar o URL do webhook
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-    const host = req.headers['x-forwarded-host'] || req.get('host') || '187.127.17.88:3140';
-    const webhookUrl = `${protocol}://${host}/api/webhooks/mercadopago`;
+    // Determinar o URL do webhook (Mercado Pago requer HTTPS)
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://bagrelab.pampo.tech/api/webhooks/mercadopago';
 
     const cleanEmail =
       quote.customerEmail && quote.customerEmail.includes('@')
