@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SavedQuote, Material, Printer, AuthUser } from '../lib/types';
 import { formatCurrency } from '../lib/calculator';
 import { PIPELINE_STAGES, PipelineStageKey, getQuoteStage } from '../lib/pipeline';
-import { MessageSquare, Lock, Check } from 'lucide-react';
+import { MessageSquare, Lock, Check, Zap } from 'lucide-react';
+import { PixPaymentModal } from './PixPaymentModal';
 
 interface MyRequestsTabProps {
   quotes: SavedQuote[];
@@ -19,6 +20,8 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
   onOpenMakerWorld,
   onDeleteQuote,
 }) => {
+  const [payingQuote, setPayingQuote] = useState<SavedQuote | null>(null);
+
   // Filter quotes belonging to this client (by email or phone)
   const clientCleanPhone = currentUser.phone ? currentUser.phone.replace(/\D/g, '') : '';
   const myQuotes = quotes.filter((q) => {
@@ -317,6 +320,17 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!isPaid && (
+                      <button
+                        type="button"
+                        onClick={() => setPayingQuote(q)}
+                        className="btn-forest inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold cursor-pointer bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-2xs"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Pagar com Pix (QR Code)</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => {
@@ -338,6 +352,15 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Modal de Pagamento Pix */}
+      {payingQuote && (
+        <PixPaymentModal
+          isOpen={Boolean(payingQuote)}
+          onClose={() => setPayingQuote(null)}
+          quote={payingQuote}
+        />
       )}
 
     </section>

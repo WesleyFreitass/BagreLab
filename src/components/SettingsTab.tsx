@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { WorkshopSettings, FixedExpenseItem, AssetDepreciationItem } from '../lib/types';
 import { calculateHourlyLaborRate, formatCurrency } from '../lib/calculator';
-import { Settings, Plus, Trash2, Save, Check, Clock, Zap, Laptop, Building2 } from 'lucide-react';
+import { Settings, Plus, Trash2, Save, Check, Clock, Zap, Laptop, Building2, CreditCard, Copy } from 'lucide-react';
 
 interface SettingsTabProps {
   settings: WorkshopSettings;
@@ -395,6 +395,96 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Mercado Pago Pix Integration & Fee Pass-through */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Integração Pix Mercado Pago & Repasse de Taxa</h3>
+              <p className="text-[11px] text-slate-500">Receba pagamentos instantâneos via QR Code diretamente na sua conta</p>
+            </div>
+          </div>
+
+          <a
+            href="https://www.mercadopago.com.br/developers/panel/app"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 font-semibold"
+          >
+            <span>Painel Mercado Pago ↗</span>
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div>
+            <label className="text-slate-700 font-bold block mb-1">
+              Access Token do Mercado Pago (Produção)
+            </label>
+            <input
+              type="password"
+              value={settings.mercadoPagoAccessToken || ''}
+              onChange={(e) => setSettings({ ...settings, mercadoPagoAccessToken: e.target.value })}
+              placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxx"
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-[11px] text-slate-400 mt-1 block">
+              Gere seu token de produção no painel de desenvolvedores do Mercado Pago.
+            </span>
+          </div>
+
+          <div>
+            <label className="text-slate-700 font-bold block mb-1">
+              Taxa Pix Repassada no Orçamento DRE (%)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="20"
+                value={settings.cardFeePercent ?? 0.99}
+                onChange={(e) => setSettings({ ...settings, cardFeePercent: Number(e.target.value) })}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-medium">%</span>
+            </div>
+            <span className="text-[11px] text-slate-400 mt-1 block">
+              Padrão Mercado Pago Pix: <strong>0.99%</strong>. Esta taxa é absorvida no mark-up comercial para preservar 100% do seu lucro líquido.
+            </span>
+          </div>
+        </div>
+
+        {/* Webhook URL display */}
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-700 font-mono text-[11px] uppercase tracking-wider">
+              URL do Webhook (Baixa Automática):
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}/api/webhooks/mercadopago`;
+                navigator.clipboard.writeText(url);
+                alert('URL do Webhook copiada!');
+              }}
+              className="text-blue-600 hover:text-blue-800 text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1"
+            >
+              <Copy className="w-3 h-3" />
+              <span>Copiar URL</span>
+            </button>
+          </div>
+          <code className="block bg-white p-2 rounded border border-slate-200 text-[11px] text-slate-800 font-mono select-all">
+            {typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/mercadopago` : 'http://187.127.17.88:3140/api/webhooks/mercadopago'}
+          </code>
+          <p className="text-[11px] text-slate-500">
+            Cadastre esta URL em <strong>Notificações Webhook</strong> no Mercado Pago selecionando o evento <code>Pagamentos (payment)</code> para confirmação automática em tempo real.
+          </p>
         </div>
       </div>
 

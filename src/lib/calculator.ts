@@ -205,7 +205,7 @@ export const initialWorkshopSettings: WorkshopSettings = {
   productivityPercent: 85, // 85% de eficiência
   taxesPercent: 0, // 0% (MEI isento de imposto por nota)
   onlinePlatformFeePercent: 0,
-  cardFeePercent: 0,
+  cardFeePercent: 0.99, // 0.99% Taxa padrão Pix Mercado Pago repassada ao cliente
   defaultProfitMarginPercent: 50, // 50% de lucro líquido
   fixedExpenses: [
     { id: 'exp-1', name: 'Energia Elétrica Geral (Ambiente)', cost: 0 },

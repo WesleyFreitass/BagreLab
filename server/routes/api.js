@@ -483,4 +483,256 @@ router.post('/makerworld/parse', async (req, res) => {
   }
 });
 
+// --- MERCADO PAGO: INTEGRAÇÃO PIX ---
+
+// 1. Criar Cobrança Pix para um Orçamento
+router.post('/payments/pix', async (req, res) => {
+  try {
+    const { quoteId } = req.body;
+    if (!quoteId) {
+      return res.status(400).json({ error: 'quoteId é obrigatório' });
+    }
+
+    const quote = await QuoteModel.findById(quoteId);
+    if (!quote) {
+      return res.status(404).json({ error: 'Orçamento não encontrado' });
+    }
+
+    // Obter credenciais do Mercado Pago (via settings no banco ou variável de ambiente)
+    const settings = await SettingModel.findOne({ key: 'global' });
+    const accessToken = settings?.mercadoPagoAccessToken?.trim() || process.env.MP_ACCESS_TOKEN?.trim();
+
+    if (!accessToken) {
+      return res.status(400).json({
+        error: 'Token do Mercado Pago não configurado. Por favor, adicione seu Access Token na aba Configurações da Oficina.',
+        missingConfig: true,
+      });
+    }
+
+    const amount = Number(
+      (quote.calculation?.finalPriceWithShipping || quote.calculation?.salePriceCash || 0).toFixed(2)
+    );
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Valor do orçamento inválido para gerar Pix' });
+    }
+
+    // Se já existe um pagamento Pix pendente criado há menos de 25 minutos, reutiliza
+    if (
+      quote.pixPayment?.qrCode &&
+      quote.pixPayment?.status === 'pending' &&
+      quote.pixPayment?.expiresAt &&
+      new Date(quote.pixPayment.expiresAt) > new Date()
+    ) {
+      return res.json({
+        success: true,
+        reused: true,
+        pix: quote.pixPayment,
+        quote,
+      });
+    }
+
+    // Determinar o URL do webhook
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || '187.127.17.88:3140';
+    const webhookUrl = `${protocol}://${host}/api/webhooks/mercadopago`;
+
+    const cleanEmail =
+      quote.customerEmail && quote.customerEmail.includes('@')
+        ? quote.customerEmail.trim()
+        : 'pagamentos@bagrelab.com.br';
+
+    const customerParts = (quote.customerName || 'Cliente').trim().split(/\s+/);
+    const firstName = customerParts[0] || 'Cliente';
+    const lastName = customerParts.length > 1 ? customerParts.slice(1).join(' ') : 'BagreLab';
+
+    // Expiração em 30 minutos
+    const expirationDate = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    const mpPayload = {
+      transaction_amount: amount,
+      description: `BagreLab - Pedido #${quote.quoteNumber}`,
+      payment_method_id: 'pix',
+      date_of_expiration: expirationDate,
+      payer: {
+        email: cleanEmail,
+        first_name: firstName,
+        last_name: lastName,
+      },
+      notification_url: webhookUrl,
+      external_reference: quote.quoteNumber,
+    };
+
+    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': `${quote.quoteNumber}-${Date.now()}`,
+      },
+      body: JSON.stringify(mpPayload),
+    });
+
+    const mpData = await mpResponse.json();
+
+    if (!mpResponse.ok) {
+      console.error('Erro Mercado Pago API:', mpResponse.status, mpData);
+      return res.status(mpResponse.status).json({
+        error: mpData.message || 'Erro ao gerar Pix no Mercado Pago',
+        details: mpData,
+      });
+    }
+
+    const pixData = {
+      paymentId: mpData.id ? mpData.id.toString() : null,
+      qrCode: mpData.point_of_interaction?.transaction_data?.qr_code || null,
+      qrCodeBase64: mpData.point_of_interaction?.transaction_data?.qr_code_base64 || null,
+      ticketUrl: mpData.point_of_interaction?.transaction_data?.ticket_url || null,
+      status: mpData.status || 'pending',
+      expiresAt: mpData.date_of_expiration || expirationDate,
+      createdAt: new Date(),
+    };
+
+    quote.pixPayment = pixData;
+    // Se o pedido ainda estava em pending_review, avança para awaiting_payment
+    if (quote.status === 'pending_review' || quote.status === 'draft') {
+      quote.status = 'awaiting_payment';
+    }
+    await quote.save();
+
+    res.json({
+      success: true,
+      pix: pixData,
+      quote,
+    });
+  } catch (err) {
+    console.error('Erro na rota /payments/pix:', err);
+    res.status(500).json({ error: 'Erro interno ao processar pagamento Pix: ' + err.message });
+  }
+});
+
+// 2. Consulta de Status do Pagamento (Polling do Frontend)
+router.get('/payments/status/:quoteId', async (req, res) => {
+  try {
+    const quote = await QuoteModel.findById(req.params.quoteId);
+    if (!quote) {
+      return res.status(404).json({ error: 'Orçamento não encontrado' });
+    }
+
+    if (quote.paymentStatus === 'paid') {
+      return res.json({
+        paid: true,
+        paymentStatus: 'paid',
+        status: quote.status,
+        paidAt: quote.paidAt,
+      });
+    }
+
+    if (quote.pixPayment?.paymentId) {
+      const settings = await SettingModel.findOne({ key: 'global' });
+      const accessToken = settings?.mercadoPagoAccessToken?.trim() || process.env.MP_ACCESS_TOKEN?.trim();
+
+      if (accessToken) {
+        try {
+          const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${quote.pixPayment.paymentId}`, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+
+          if (mpRes.ok) {
+            const mpPayment = await mpRes.json();
+            quote.pixPayment.status = mpPayment.status;
+
+            if (mpPayment.status === 'approved') {
+              quote.paymentStatus = 'paid';
+              quote.paidAt = new Date(mpPayment.date_approved || Date.now());
+              // Transição automática: avança para a Fila de Impressão (Etapa 3)!
+              quote.status = 'queued';
+              await quote.save();
+
+              return res.json({
+                paid: true,
+                paymentStatus: 'paid',
+                status: 'queued',
+                paidAt: quote.paidAt,
+                approvedNow: true,
+              });
+            }
+          }
+        } catch (mpErr) {
+          console.warn('Erro ao consultar Mercado Pago:', mpErr.message);
+        }
+      }
+    }
+
+    res.json({
+      paid: quote.paymentStatus === 'paid',
+      paymentStatus: quote.paymentStatus,
+      status: quote.status,
+      paidAt: quote.paidAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Webhook do Mercado Pago (Notificações instantâneas de pagamento)
+router.post('/webhooks/mercadopago', async (req, res) => {
+  try {
+    const paymentId = req.body?.data?.id || req.query?.['data.id'] || req.query?.id;
+    const type = req.body?.type || req.body?.action || req.query?.topic || req.query?.type;
+
+    console.log(`[Mercado Pago Webhook] Recebido evento: type=${type}, paymentId=${paymentId}`);
+
+    if (paymentId) {
+      const settings = await SettingModel.findOne({ key: 'global' });
+      const accessToken = settings?.mercadoPagoAccessToken?.trim() || process.env.MP_ACCESS_TOKEN?.trim();
+
+      if (accessToken) {
+        const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+
+        if (mpRes.ok) {
+          const mpPayment = await mpRes.json();
+          console.log(`[Mercado Pago Webhook] Status do pagamento ${paymentId}: ${mpPayment.status}`);
+
+          if (mpPayment.status === 'approved') {
+            const extRef = mpPayment.external_reference;
+            const quote = await QuoteModel.findOne({
+              $or: [
+                { quoteNumber: extRef },
+                { 'pixPayment.paymentId': paymentId.toString() },
+              ],
+            });
+
+            if (quote) {
+              quote.paymentStatus = 'paid';
+              quote.paidAt = new Date(mpPayment.date_approved || Date.now());
+              quote.status = 'queued'; // Avança automaticamente para Etapa 3 (Fila de Impressão)!
+              if (quote.pixPayment) {
+                quote.pixPayment.status = 'approved';
+              }
+              await quote.save();
+              console.log(`[Mercado Pago Webhook] Orçamento #${quote.quoteNumber} aprovado e movido para Fila de Impressão!`);
+            }
+          }
+        }
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('[Mercado Pago Webhook] Erro ao processar:', err);
+    res.status(200).send('OK');
+  }
+});
+
+router.get('/webhooks/mercadopago', (req, res) => {
+  res.status(200).send('Mercado Pago Webhook Active');
+});
+
 export default router;

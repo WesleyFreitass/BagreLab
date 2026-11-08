@@ -37,6 +37,16 @@ const quoteSchema = new mongoose.Schema(
       default: 'pending',
     },
     paidAt: { type: Date, default: null },
+    // Integração Pix Mercado Pago
+    pixPayment: {
+      paymentId: { type: String, default: null },
+      qrCode: { type: String, default: null },
+      qrCodeBase64: { type: String, default: null },
+      ticketUrl: { type: String, default: null },
+      status: { type: String, default: null },
+      expiresAt: { type: Date, default: null },
+      createdAt: { type: Date, default: null },
+    },
     makerWorldData: {
       designId: Number,
       modelTitle: String,

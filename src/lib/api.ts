@@ -6,6 +6,7 @@ import {
   SavedQuote,
   MakerWorldModelData,
   AuthUser,
+  PixPaymentData,
 } from './types';
 import {
   initialCustomers,
@@ -443,6 +444,47 @@ export async function updateQuoteStatusApi(id: string, status: SavedQuote['statu
     localList[idx].status = status;
     localStorage.setItem(LOCAL_STORAGE_KEYS.QUOTES, JSON.stringify(localList));
   }
+}
+
+// --- PAGAMENTOS PIX MERCADO PAGO ---
+export async function createPixPaymentApi(quoteId: string): Promise<{
+  success: boolean;
+  pix?: PixPaymentData;
+  quote?: SavedQuote;
+  error?: string;
+  missingConfig?: boolean;
+}> {
+  try {
+    const res = await fetch('/api/payments/pix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quoteId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Erro ao gerar Pix', missingConfig: data.missingConfig };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Falha na conexão com o servidor' };
+  }
+}
+
+export async function checkPixPaymentStatusApi(quoteId: string): Promise<{
+  paid: boolean;
+  paymentStatus: string;
+  status: string;
+  approvedNow?: boolean;
+}> {
+  try {
+    const res = await fetch(`/api/payments/status/${quoteId}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // offline
+  }
+  return { paid: false, paymentStatus: 'pending', status: 'awaiting_payment' };
 }
 
 // --- AUTENTICAÇÃO & CONTROLE DE ACESSO (MAKER vs CLIENTE) ---

@@ -4,6 +4,7 @@ import { formatCurrency, formatWhatsAppRevisedQuoteMessage } from '../lib/calcul
 import { PIPELINE_STAGES, PipelineStageKey, getQuoteStage } from '../lib/pipeline';
 import { ProposalModal } from './ProposalModal';
 import { QuoteRevisionModal } from './QuoteRevisionModal';
+import { PixPaymentModal } from './PixPaymentModal';
 import {
   Inbox,
   Clock,
@@ -27,6 +28,7 @@ import {
   Printer as PrinterIcon,
   Check,
   Send,
+  Zap,
 } from 'lucide-react';
 
 interface ClientRequestsTabProps {
@@ -53,6 +55,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
   const [revisingQuote, setRevisingQuote] = useState<SavedQuote | null>(null);
+  const [pixModalQuote, setPixModalQuote] = useState<SavedQuote | null>(null);
 
   // Filter requests (quotes with clientDecision or makerWorldData or pending status)
   const clientQuotes = quotes.filter(
@@ -196,11 +199,14 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
     if (clean.length === 10 || clean.length === 11) clean = `55${clean}`;
 
     const finalVal = q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0;
+    const pixPart = q.pixPayment?.qrCode
+      ? `\n\n⚡ *Chave Pix (Copia e Cola):*\n\`\`\`\n${q.pixPayment.qrCode}\n\`\`\`\n`
+      : '';
     const text = `Olá ${q.customerName}! Seu orçamento #${q.quoteNumber} para o modelo "${
       q.makerWorldData?.modelTitle || 'Impressão 3D'
     }" está pronto e aprovado no valor de ${formatCurrency(
       finalVal
-    )}.\n\nAssim que o pagamento Pix for confirmado, sua peça entra imediatamente na fila de impressão da bancada! 🚀`;
+    )}.${pixPart}\n\nAssim que o pagamento Pix for confirmado, sua peça entra imediatamente na fila de impressão da bancada! 🚀`;
 
     window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -732,6 +738,15 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                     {stage === 'awaiting_payment' && (
                       <>
                         <button
+                          onClick={() => setPixModalQuote(quote)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Gerar QR Code Pix e Código Copia e Cola"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>Gerar / Ver Pix QR Code</span>
+                        </button>
+
+                        <button
                           onClick={() => handleConfirmPayment(quote)}
                           className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
                           title="Confirmar recebimento do Pix e liberar para fila de impressão"
@@ -902,6 +917,19 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
           settings={settings}
           onSaveRevision={handleSaveRevision}
           onOpenInFullCalculator={onOpenInCalculator}
+        />
+      )}
+
+      {/* Pix Payment Modal */}
+      {pixModalQuote && (
+        <PixPaymentModal
+          isOpen={Boolean(pixModalQuote)}
+          onClose={() => setPixModalQuote(null)}
+          quote={pixModalQuote}
+          onPaymentSuccess={async () => {
+            // Recarrega ou fecha
+            setPixModalQuote(null);
+          }}
         />
       )}
 

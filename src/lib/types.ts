@@ -118,8 +118,12 @@ export interface WorkshopSettings {
   // Encargos de comercialização padrão
   taxesPercent: number; // Impostos MEI / Simples (ex: 0%)
   onlinePlatformFeePercent: number; // Taxa marketplace ML/Shopee (ex: 0%)
-  cardFeePercent: number; // Taxa de cartão / gateway (ex: 0%)
+  cardFeePercent: number; // Taxa de cartão / gateway (ex: 0.99%)
   defaultProfitMarginPercent: number; // Margem padrão (ex: 50%)
+  // Integração Mercado Pago Pix
+  mercadoPagoAccessToken?: string;
+  mercadoPagoPublicKey?: string;
+  mercadoPagoWebhookSecret?: string;
   // Integração opcional WhatsApp
   whatsappApiUrl?: string;
   whatsappApiKey?: string;
@@ -187,6 +191,16 @@ export interface QuoteCalculationResult {
   };
 }
 
+export interface PixPaymentData {
+  paymentId?: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+  ticketUrl?: string;
+  status?: string;
+  expiresAt?: string;
+  createdAt?: string;
+}
+
 export interface SavedQuote {
   _id?: string;
   id?: string;
@@ -221,6 +235,7 @@ export interface SavedQuote {
   quantity?: number;
   paymentStatus?: 'pending' | 'paid';
   paidAt?: string;
+  pixPayment?: PixPaymentData;
   // Revisão Técnica do Maker (Valores Reais pós-fatiamento)
   isRevised?: boolean;
   originalPrice?: number;

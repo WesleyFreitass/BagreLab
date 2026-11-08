@@ -11,8 +11,12 @@ const settingSchema = new mongoose.Schema(
     productivityPercent: { type: Number, default: 85 },
     taxesPercent: { type: Number, default: 0 },
     onlinePlatformFeePercent: { type: Number, default: 0 },
-    cardFeePercent: { type: Number, default: 0 },
+    cardFeePercent: { type: Number, default: 0.99 },
     defaultProfitMarginPercent: { type: Number, default: 50 },
+    // Integração Mercado Pago Pix
+    mercadoPagoAccessToken: { type: String, default: '' },
+    mercadoPagoPublicKey: { type: String, default: '' },
+    mercadoPagoWebhookSecret: { type: String, default: '' },
     // Configurações Opcionais de Disparo WhatsApp (Evolution API / Gateway VPS)
     whatsappApiUrl: { type: String, default: '' },
     whatsappApiKey: { type: String, default: '' },
