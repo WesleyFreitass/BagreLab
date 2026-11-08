@@ -184,7 +184,7 @@ export const QuoteRevisionModal: React.FC<QuoteRevisionModalProps> = ({
         revisedPrice: currentFinalPrice,
         revisionNotes: revisionNotes.trim(),
         revisedAt: new Date().toISOString(),
-        status: quote.status === 'completed' || quote.status === 'in_production' ? quote.status : 'revised',
+        status: quote.status === 'completed' || quote.status === 'in_production' ? quote.status : 'awaiting_payment',
       };
 
       await onSaveRevision(updatedQuote, openWhatsApp);

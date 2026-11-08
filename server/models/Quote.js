@@ -15,8 +15,8 @@ const quoteSchema = new mongoose.Schema(
     date: { type: String, default: () => new Date().toISOString().split('T')[0] },
     status: {
       type: String,
-      enum: ['draft', 'sent', 'pending_review', 'revised', 'approved', 'in_production', 'completed', 'cancelled'],
-      default: 'draft',
+      enum: ['draft', 'sent', 'pending_review', 'awaiting_payment', 'queued', 'revised', 'approved', 'in_production', 'completed', 'cancelled'],
+      default: 'pending_review',
     },
     clientDecision: {
       type: String,

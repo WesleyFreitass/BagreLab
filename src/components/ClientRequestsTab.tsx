@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SavedQuote, Material, Printer, WorkshopSettings } from '../lib/types';
 import { formatCurrency, formatWhatsAppRevisedQuoteMessage } from '../lib/calculator';
+import { PIPELINE_STAGES, PipelineStageKey, getQuoteStage } from '../lib/pipeline';
 import { ProposalModal } from './ProposalModal';
 import { QuoteRevisionModal } from './QuoteRevisionModal';
 import {
@@ -23,6 +24,9 @@ import {
   Layers,
   Lock,
   Pause,
+  Printer as PrinterIcon,
+  Check,
+  Send,
 } from 'lucide-react';
 
 interface ClientRequestsTabProps {
@@ -41,22 +45,36 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
   materials,
   printers,
   settings,
-  onUpdateStatus,
   onDeleteQuote,
   onSaveQuote,
   onOpenInCalculator,
 }) => {
-  const [filter, setFilter] = useState<
-    'all' | 'pending_payment' | 'paid' | 'direct_print' | 'confirm_quote' | 'revised' | 'in_production' | 'completed'
-  >('all');
+  const [stageFilter, setStageFilter] = useState<'all' | PipelineStageKey>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQuote, setSelectedQuote] = useState<SavedQuote | null>(null);
   const [revisingQuote, setRevisingQuote] = useState<SavedQuote | null>(null);
 
   // Filter requests (quotes with clientDecision or makerWorldData or pending status)
   const clientQuotes = quotes.filter(
-    (q) => q.clientDecision || q.makerWorldData || q.status === 'pending_review' || q.status === 'revised'
+    (q) => q.clientDecision || q.makerWorldData || q.status === 'pending_review' || q.status === 'revised' || q.status === 'awaiting_payment' || q.status === 'queued'
   );
+
+  // Stage counts for the pipeline navigation
+  const stageCounts: Record<PipelineStageKey, number> = {
+    pending_review: 0,
+    awaiting_payment: 0,
+    queued: 0,
+    in_production: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+
+  clientQuotes.forEach((q) => {
+    const stage = getQuoteStage(q);
+    if (stageCounts[stage] !== undefined) {
+      stageCounts[stage]++;
+    }
+  });
 
   // Financial summary:
   const totalPendingPayment = clientQuotes
@@ -69,10 +87,9 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
   const countPendingPayment = clientQuotes.filter((q) => q.status !== 'cancelled' && q.paymentStatus !== 'paid').length;
   const countPaid = clientQuotes.filter((q) => q.paymentStatus === 'paid').length;
-  const countDirectPrint = clientQuotes.filter((q) => q.clientDecision === 'direct_print').length;
-  const countConfirmQuote = clientQuotes.filter((q) => q.clientDecision === 'confirm_quote' && !q.isRevised).length;
-  const countRevised = clientQuotes.filter((q) => q.isRevised).length;
+  const countInWorkshop = stageCounts.queued + stageCounts.in_production;
 
+  // Filtered quotes based on active stage and search term
   const filtered = clientQuotes.filter((q) => {
     const matchesSearch =
       q.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,30 +99,80 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
 
     if (!matchesSearch) return false;
 
-    if (filter === 'pending_payment') return q.status !== 'cancelled' && q.paymentStatus !== 'paid';
-    if (filter === 'paid') return q.paymentStatus === 'paid';
-    if (filter === 'direct_print') return q.clientDecision === 'direct_print';
-    if (filter === 'confirm_quote') return q.clientDecision === 'confirm_quote' && !q.isRevised;
-    if (filter === 'revised') return q.isRevised;
-    if (filter === 'in_production') return q.status === 'in_production';
-    if (filter === 'completed') return q.status === 'completed';
-
-    return true;
+    if (stageFilter === 'all') return true;
+    return getQuoteStage(q) === stageFilter;
   });
 
-  // Toggle payment status (Maker only)
-  const handleTogglePaymentStatus = async (quote: SavedQuote) => {
-    const isCurrentlyPaid = quote.paymentStatus === 'paid';
-    const nextStatus = isCurrentlyPaid ? 'pending' : 'paid';
+  // Stage Transitions
+  const handleApproveForPayment = async (quote: SavedQuote) => {
     const updated: SavedQuote = {
       ...quote,
-      paymentStatus: nextStatus,
-      paidAt: nextStatus === 'paid' ? new Date().toISOString() : undefined,
+      status: 'awaiting_payment',
     };
     await onSaveQuote(updated);
   };
 
-  // Standard initial WhatsApp message
+  const handleConfirmPayment = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'queued',
+      paymentStatus: 'paid',
+      paidAt: new Date().toISOString(),
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handleUndoPayment = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'awaiting_payment',
+      paymentStatus: 'pending',
+      paidAt: undefined,
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handleStartProduction = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'in_production',
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handlePauseProduction = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'queued',
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handleCompleteProduction = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'completed',
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handleReopenProduction = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'queued',
+    };
+    await onSaveQuote(updated);
+  };
+
+  const handleReturnToAnalysis = async (quote: SavedQuote) => {
+    const updated: SavedQuote = {
+      ...quote,
+      status: 'pending_review',
+    };
+    await onSaveQuote(updated);
+  };
+
+  // WhatsApp helpers
   const handleOpenWhatsApp = (q: SavedQuote) => {
     if (!q.customerPhone) return;
     let clean = q.customerPhone.replace(/\D/g, '');
@@ -123,7 +190,33 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
     window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  // WhatsApp message for REVISED quotes (Old vs New value)
+  const handleSendPaymentWhatsApp = (q: SavedQuote) => {
+    if (!q.customerPhone) return;
+    let clean = q.customerPhone.replace(/\D/g, '');
+    if (clean.length === 10 || clean.length === 11) clean = `55${clean}`;
+
+    const finalVal = q.calculation?.finalPriceWithShipping || q.calculation?.salePriceCash || 0;
+    const text = `Olá ${q.customerName}! Seu orçamento #${q.quoteNumber} para o modelo "${
+      q.makerWorldData?.modelTitle || 'Impressão 3D'
+    }" está pronto e aprovado no valor de ${formatCurrency(
+      finalVal
+    )}.\n\nAssim que o pagamento Pix for confirmado, sua peça entra imediatamente na fila de impressão da bancada! 🚀`;
+
+    window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleSendCompletedWhatsApp = (q: SavedQuote) => {
+    if (!q.customerPhone) return;
+    let clean = q.customerPhone.replace(/\D/g, '');
+    if (clean.length === 10 || clean.length === 11) clean = `55${clean}`;
+
+    const text = `Olá ${q.customerName}! Sua impressão 3D do modelo "${
+      q.makerWorldData?.modelTitle || 'Peça 3D'
+    }" (Orçamento #${q.quoteNumber}) foi finalizada com sucesso! 🎉\n\nJá está pronta para retirada/envio. Podemos combinar a entrega?`;
+
+    window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   const handleSendRevisedWhatsApp = (q: SavedQuote) => {
     if (!q.customerPhone) return;
     let clean = q.customerPhone.replace(/\D/g, '');
@@ -152,6 +245,15 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
     }
   };
 
+  // Step definitions for the progress indicator
+  const pipelineSteps: { key: PipelineStageKey; label: string; number: number }[] = [
+    { key: 'pending_review', label: '1. Análise', number: 1 },
+    { key: 'awaiting_payment', label: '2. Pagamento', number: 2 },
+    { key: 'queued', label: '3. Fila', number: 3 },
+    { key: 'in_production', label: '4. Produção', number: 4 },
+    { key: 'completed', label: '5. Concluído', number: 5 },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Top Banner & Financial Metrics */}
@@ -163,11 +265,11 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                 <Inbox className="w-5 h-5" />
               </span>
               <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-                Orçamentos Solicitados por Clientes
+                Gestão da Linha de Produção (Pipeline Maker)
               </h2>
             </div>
             <p className="text-sm text-slate-500">
-              Gerencie solicitações, execute a conferência técnica real, atualize orçamentos e controle a baixa dos pagamentos recebidos.
+              Fluxo operacional em 5 etapas: Análise Técnica ➔ Aguardando Pagamento ➔ Fila de Impressão ➔ Em Produção ➔ Concluído.
             </p>
           </div>
 
@@ -190,7 +292,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                 {formatCurrency(totalPendingPayment)}
               </div>
               <span className="text-[11px] text-amber-700">
-                {countPendingPayment} pedido(s) aguardando baixa
+                {countPendingPayment} pedido(s) aguardando Pix
               </span>
             </div>
             <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
@@ -201,13 +303,13 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
           <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 font-mono block">
-                Total Pago e Baixado
+                Total Pago e Confirmado
               </span>
               <div className="text-xl font-black font-mono text-emerald-950 mt-0.5">
                 {formatCurrency(totalPaid)}
               </div>
               <span className="text-[11px] text-emerald-700">
-                {countPaid} pedido(s) com baixa confirmada
+                {countPaid} pedido(s) com baixa realizada
               </span>
             </div>
             <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -218,114 +320,108 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between sm:col-span-2 lg:col-span-1">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono block">
-                Revisão Técnica
+                Ordens na Oficina
               </span>
               <div className="text-xl font-bold font-mono text-slate-800 mt-0.5">
-                {countRevised} / {clientQuotes.length}
+                {countInWorkshop} em andamento
               </div>
               <span className="text-[11px] text-slate-500">
-                Pedidos com fatiamento real salvo
+                {stageCounts.queued} na fila • {stageCounts.in_production} na máquina
               </span>
             </div>
             <div className="w-9 h-9 rounded-lg bg-slate-200/80 text-slate-700 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5" />
+              <PrinterIcon className="w-5 h-5" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5 w-full lg:w-auto">
+      {/* 5-Stage Pipeline Stepper Bar */}
+      <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto">
           <button
-            onClick={() => setFilter('all')}
+            onClick={() => setStageFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              filter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              stageFilter === 'all'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
             Todos ({clientQuotes.length})
           </button>
 
           <button
-            onClick={() => setFilter('pending_payment')}
+            onClick={() => setStageFilter('pending_review')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-              filter === 'pending_payment'
-                ? 'bg-amber-600 text-white'
-                : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+              stageFilter === 'pending_review'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>A Pagar ({countPendingPayment})</span>
+            <span>1. Análise Técnica ({stageCounts.pending_review})</span>
           </button>
 
           <button
-            onClick={() => setFilter('paid')}
+            onClick={() => setStageFilter('awaiting_payment')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-              filter === 'paid'
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+              stageFilter === 'awaiting_payment'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
             }`}
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Pagos ({countPaid})</span>
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>2. Aguardando Pagamento ({stageCounts.awaiting_payment})</span>
           </button>
 
           <button
-            onClick={() => setFilter('confirm_quote')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              filter === 'confirm_quote'
-                ? 'bg-blue-600 text-white'
-                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+            onClick={() => setStageFilter('queued')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+              stageFilter === 'queued'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100 border border-emerald-200'
             }`}
           >
-            Aguardando Revisão ({countConfirmQuote})
+            <Package className="w-3.5 h-3.5" />
+            <span>3. Fila de Impressão ({stageCounts.queued})</span>
           </button>
 
           <button
-            onClick={() => setFilter('revised')}
+            onClick={() => setStageFilter('in_production')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-              filter === 'revised'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
-            }`}
-          >
-            <Wrench className="w-3.5 h-3.5" />
-            <span>Revisados ({countRevised})</span>
-          </button>
-
-          <button
-            onClick={() => setFilter('direct_print')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-              filter === 'direct_print'
-                ? 'bg-emerald-700 text-white'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'
+              stageFilter === 'in_production'
+                ? 'bg-[#1E3E24] text-white shadow-xs'
+                : 'bg-[#E3ECE4] text-[#1E3E24] hover:bg-[#d5e2d6] border border-[#b2ccb5]'
             }`}
           >
             <Play className="w-3.5 h-3.5" />
-            <span>Pode Imprimir ({countDirectPrint})</span>
+            <span>4. Em Produção ({stageCounts.in_production})</span>
           </button>
 
           <button
-            onClick={() => setFilter('in_production')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              filter === 'in_production'
-                ? 'bg-slate-700 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            onClick={() => setStageFilter('completed')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+              stageFilter === 'completed'
+                ? 'bg-slate-700 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
             }`}
           >
-            Em Produção
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>5. Concluídos ({stageCounts.completed})</span>
           </button>
 
-          <button
-            onClick={() => setFilter('completed')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-              filter === 'completed'
-                ? 'bg-purple-700 text-white'
-                : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
-            }`}
-          >
-            Concluídos
-          </button>
+          {stageCounts.cancelled > 0 && (
+            <button
+              onClick={() => setStageFilter('cancelled')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 ${
+                stageFilter === 'cancelled'
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <span>Cancelados ({stageCounts.cancelled})</span>
+            </button>
+          )}
         </div>
 
         <div className="relative w-full lg:w-72">
@@ -334,7 +430,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, WhatsApp ou peça..."
+            placeholder="Buscar cliente, WhatsApp ou peça..."
             className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -345,15 +441,16 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
         {filtered.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400 shadow-xs">
             <Inbox className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-            <p className="font-semibold text-sm text-slate-700">Nenhuma solicitação encontrada</p>
+            <p className="font-semibold text-sm text-slate-700">Nenhum pedido nesta etapa do pipeline</p>
             <p className="text-xs text-slate-400 mt-1">
-              Quando os clientes solicitarem orçamentos ou autorizarem a impressão via portal, eles aparecerão aqui.
+              Selecione "Todos" ou outra etapa acima para visualizar as ordens de serviço.
             </p>
           </div>
         ) : (
           filtered.map((quote) => {
             const qId = quote.id || quote._id || '';
-            const isDirectPrint = quote.clientDecision === 'direct_print';
+            const stage = getQuoteStage(quote);
+            const stageConfig = PIPELINE_STAGES[stage] || PIPELINE_STAGES.pending_review;
             const mw = quote.makerWorldData;
             const isRevised = !!quote.isRevised;
             const isPaid = quote.paymentStatus === 'paid';
@@ -365,12 +462,9 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
             return (
               <div
                 key={qId}
-                className={`bg-white rounded-xl border p-5 shadow-xs transition-all space-y-4 ${
-                  isRevised
-                    ? 'border-blue-200 ring-1 ring-blue-100 hover:border-blue-300'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
+                className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs transition-all space-y-4 hover:border-slate-300"
               >
+                {/* Header Row: Thumbnail + Info + Price */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-3 border-b border-slate-100">
                   {/* Left: Model thumbnail and title */}
                   <div className="flex items-start gap-3.5">
@@ -391,34 +485,14 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                         <span className="text-xs font-mono font-bold text-slate-500">#{quote.quoteNumber}</span>
                         <span className="text-xs text-slate-400">• {quote.date}</span>
 
-                        {/* Status Operacional Unificado (Apenas 1 badge principal) */}
-                        {quote.status === 'completed' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
-                            <span>Concluído</span>
-                          </span>
-                        ) : quote.status === 'in_production' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            <Play className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Em Produção</span>
-                          </span>
-                        ) : isRevised ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                            <Wrench className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Orçamento Revisado</span>
-                          </span>
-                        ) : isDirectPrint ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <Play className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Pode Imprimir</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300">
-                            <Clock className="w-3.5 h-3.5 text-slate-500" />
-                            <span>Aguardando Análise</span>
-                          </span>
-                        )}
+                        {/* Prominent Unified Stage Badge */}
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${stageConfig.badgeBg} ${stageConfig.badgeText} ${stageConfig.badgeBorder}`}
+                        >
+                          <span>{stageConfig.label}</span>
+                        </span>
 
+                        {/* Quantity Badge */}
                         {quantity > 1 && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300 font-mono">
                             <Layers className="w-3 h-3 text-slate-500" />
@@ -445,7 +519,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* Right: Value, Payment Status & Production Status */}
+                  {/* Right: Value, Payment Status */}
                   <div className="text-left sm:text-right space-y-1.5 shrink-0">
                     {/* Status Financeiro */}
                     <div className="flex sm:justify-end">
@@ -493,6 +567,48 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* Visual 5-Step Pipeline Mini Stepper */}
+                <div className="bg-slate-50/70 rounded-xl p-2.5 border border-slate-200/70">
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    {pipelineSteps.map((step, idx) => {
+                      const isCurrent = step.key === stage;
+                      const isPast = stageConfig.stepNumber > step.number;
+
+                      return (
+                        <React.Fragment key={step.key}>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                                isCurrent
+                                  ? 'bg-blue-600 text-white ring-2 ring-blue-300'
+                                  : isPast
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {isPast ? <Check className="w-3 h-3" /> : step.number}
+                            </span>
+                            <span
+                              className={`hidden md:inline ${
+                                isCurrent ? 'font-bold text-blue-900' : isPast ? 'font-semibold text-slate-700' : 'text-slate-400'
+                              }`}
+                            >
+                              {step.label}
+                            </span>
+                          </div>
+                          {idx < pipelineSteps.length - 1 && (
+                            <div
+                              className={`h-0.5 flex-1 mx-2 ${
+                                stageConfig.stepNumber > step.number ? 'bg-emerald-400' : 'bg-slate-200'
+                              }`}
+                            />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -547,7 +663,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                   {/* Filaments Chosen by Client */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider font-mono">
-                      Cores & Filamentos Selecionados pelo Cliente:
+                      Cores & Filamentos Selecionados:
                     </span>
                     {mw?.filaments && mw.filaments.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -577,91 +693,163 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                   </div>
                 </div>
 
-                {/* Maker Action Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                {/* Maker Linear Action Controls tailored to Current Stage */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
                   <div className="flex flex-wrap items-center gap-2">
                     
-                    {/* Primary Maker Revision Button */}
-                    <button
-                      onClick={() => setRevisingQuote(quote)}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Wrench className="w-3.5 h-3.5" />
-                      <span>{isRevised ? 'Editar Orçamento Real' : 'Ajustar Orçamento Real (Revisar)'}</span>
-                    </button>
+                    {/* ETAPA 1: Novas Solicitações (Análise Técnica) */}
+                    {stage === 'pending_review' && (
+                      <>
+                        <button
+                          onClick={() => setRevisingQuote(quote)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Ajustar peso e tempo reais pós-fatiamento"
+                        >
+                          <Wrench className="w-3.5 h-3.5" />
+                          <span>Revisar no Fatiador</span>
+                        </button>
 
-                    {/* WhatsApp Button with Revised Format */}
-                    {isRevised ? (
-                      <button
-                        onClick={() => handleSendRevisedWhatsApp(quote)}
-                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                        title="Enviar proposta com valor antigo vs novo no WhatsApp"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Enviar Novo Valor no WhatsApp</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleOpenWhatsApp(quote)}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors cursor-pointer flex items-center gap-1.5"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Chamar no WhatsApp</span>
-                      </button>
+                        <button
+                          onClick={() => handleApproveForPayment(quote)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Confirmar valor estimado e liberar para pagamento"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Aprovar para Pagamento</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenWhatsApp(quote)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Chamar no WhatsApp</span>
+                        </button>
+                      </>
                     )}
 
-                    {/* Maker Payment Status Toggle */}
-                    {isPaid ? (
-                      <button
-                        onClick={() => handleTogglePaymentStatus(quote)}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
-                        title="Desfazer baixa e marcar como pendente"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Desfazer Baixa</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleTogglePaymentStatus(quote)}
-                        className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                        title="Registrar recebimento do pagamento"
-                      >
-                        <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
-                        <span>Dar Baixa (Marcar como Pago)</span>
-                      </button>
+                    {/* ETAPA 2: Aguardando Pagamento (Pix) */}
+                    {stage === 'awaiting_payment' && (
+                      <>
+                        <button
+                          onClick={() => handleConfirmPayment(quote)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Confirmar recebimento do Pix e liberar para fila de impressão"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          <span>Confirmar Pagamento (Pix Recebido)</span>
+                        </button>
+
+                        {isRevised ? (
+                          <button
+                            onClick={() => handleSendRevisedWhatsApp(quote)}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                            title="Enviar orçamento revisado no WhatsApp"
+                          >
+                            <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Enviar Proposta WhatsApp</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSendPaymentWhatsApp(quote)}
+                            className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                            title="Cobrar cliente com valor aprovado no WhatsApp"
+                          >
+                            <Send className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Cobrar no WhatsApp</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => setRevisingQuote(quote)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                        >
+                          <Wrench className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Reajustar Orçamento</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleReturnToAnalysis(quote)}
+                          className="px-2.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                          title="Voltar para análise técnica"
+                        >
+                          <RotateCcw className="w-3 h-3 inline mr-1" />
+                          <span>Voltar</span>
+                        </button>
+                      </>
                     )}
 
-                    {quote.status === 'in_production' ? (
-                      <button
-                        onClick={() => onUpdateStatus(qId, 'pending_review')}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1"
-                        title="Pausar produção e retornar à fila"
-                      >
-                        <Pause className="w-3 h-3 text-slate-600" />
-                        <span>Pausar (Voltar Fila)</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => onUpdateStatus(qId, 'in_production')}
-                        disabled={quote.status === 'completed'}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                        title="Iniciar impressão física na oficina"
-                      >
-                        <Play className="w-3 h-3 text-amber-700" />
-                        <span>Em Produção</span>
-                      </button>
+                    {/* ETAPA 3: Fila de Impressão (Pago / Liberado) */}
+                    {stage === 'queued' && (
+                      <>
+                        <button
+                          onClick={() => handleStartProduction(quote)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1E3E24] hover:bg-[#152D19] text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Colocar para rodar na impressora 3D"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          <span>▶ Iniciar Impressão</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleUndoPayment(quote)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Desfazer baixa do pagamento"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Desfazer Baixa</span>
+                        </button>
+                      </>
                     )}
 
-                    <button
-                      onClick={() => onUpdateStatus(qId, 'completed')}
-                      disabled={quote.status === 'completed'}
-                      className="px-3 py-2 rounded-xl text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-purple-700" />
-                      <span>Concluir</span>
-                    </button>
+                    {/* ETAPA 4: Em Produção (Na Máquina) */}
+                    {stage === 'in_production' && (
+                      <>
+                        <button
+                          onClick={() => handleCompleteProduction(quote)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Concluir impressão e liberar peça"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>✅ Concluir Impressão</span>
+                        </button>
+
+                        <button
+                          onClick={() => handlePauseProduction(quote)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Pausar e retornar à fila da bancada"
+                        >
+                          <Pause className="w-3 h-3 text-slate-600" />
+                          <span>Pausar (Voltar Fila)</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* ETAPA 5: Concluídos */}
+                    {stage === 'completed' && (
+                      <>
+                        <button
+                          onClick={() => handleSendCompletedWhatsApp(quote)}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Avisar cliente que a peça está pronta para retirada"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>🎉 Avisar no WhatsApp (Pronto)</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleReopenProduction(quote)}
+                          className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Reabrir ordem para reimpressão se necessário"
+                        >
+                          <RotateCcw className="w-3 h-3 text-slate-500" />
+                          <span>Reabrir Pedido</span>
+                        </button>
+                      </>
+                    )}
                   </div>
 
+                  {/* Secondary Tools: A4 View & Delete */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setSelectedQuote(quote)}
@@ -671,13 +859,13 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                       <span>Ver Proposta A4</span>
                     </button>
 
-                    {quote.status === 'in_production' || quote.status === 'completed' ? (
+                    {stage === 'in_production' || stage === 'completed' ? (
                       <span
                         className="p-2 rounded-xl text-slate-300 flex items-center justify-center cursor-not-allowed"
                         title={
-                          quote.status === 'in_production'
+                          stage === 'in_production'
                             ? 'Impressão já iniciada na oficina (pause para a fila se desejar excluir)'
-                            : 'Item concluído na oficina (não pode ser excluído)'
+                            : 'Item concluído na oficina'
                         }
                       >
                         <Lock className="w-4 h-4 text-slate-300" />
@@ -690,7 +878,7 @@ export const ClientRequestsTab: React.FC<ClientRequestsTabProps> = ({
                           }
                         }}
                         className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Excluir Solicitação (ainda não iniciada na oficina)"
+                        title="Excluir Solicitação"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
