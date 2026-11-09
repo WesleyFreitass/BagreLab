@@ -517,6 +517,15 @@ router.post('/payments/pix', async (req, res) => {
       return res.status(400).json({ error: 'Valor do orçamento inválido para gerar Pix' });
     }
 
+    // Bloqueio de segurança: o cliente só pode pagar após o Maker ter revisado ou aprovado o pedido
+    const isApprovedOrRevised = quote.isRevised || quote.status === 'awaiting_payment' || quote.status === 'approved';
+    if (!isApprovedOrRevised && quote.status === 'pending_review') {
+      return res.status(400).json({
+        error: 'Este pedido ainda está em análise técnica pelo Maker. O pagamento só é liberado após a conferência e aprovação do orçamento.',
+        blocked: true,
+      });
+    }
+
     // Se já existe um pagamento Pix pendente criado há menos de 25 minutos, reutiliza
     if (
       quote.pixPayment?.qrCode &&

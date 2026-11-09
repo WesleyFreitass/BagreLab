@@ -20,7 +20,10 @@
   --forest-hover: #152D19;
 }
 
+html,
 body {
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: var(--paper-bg);
   color: var(--ink-dark);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

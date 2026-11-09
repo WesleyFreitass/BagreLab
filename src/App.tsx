@@ -256,7 +256,7 @@ export function App() {
       customerPhone: currentUser.phone || quoteData.customerPhone || '',
       customerEmail: currentUser.email || quoteData.customerEmail || '',
       clientDecision: decision,
-      status: decision === 'direct_print' ? 'approved' : 'pending_review',
+      status: 'pending_review',
     });
 
     return saved;
@@ -326,7 +326,7 @@ export function App() {
         onSwitchUser={handleUpdateCurrentUser}
       />
 
-      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-7">
+      <main className="relative z-10 flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-7 pb-20 md:pb-7">
         {/* TELA INICIAL (QUANDO TAB === 'home') */}
         {activeTab === 'home' && (
           <LandingPage
@@ -467,7 +467,7 @@ export function App() {
       />
 
       {/* RODAPÉ COM SELOS DE OFICINA */}
-      <footer className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between text-xs font-mono-tech text-[#5C5349] border-t border-[#C8BFA8] no-print mt-auto gap-2">
+      <footer className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 py-3 sm:py-4 mb-16 md:mb-0 flex flex-col sm:flex-row items-center justify-between text-xs font-mono-tech text-[#5C5349] border-t border-[#C8BFA8] no-print mt-auto gap-2">
         <div className="flex items-center gap-2">
           <img
             src="/bagre-foco-silhueta-preto-transparente.png"

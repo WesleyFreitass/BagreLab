@@ -214,7 +214,7 @@ export const MakerWorldTab: React.FC<MakerWorldTabProps> = ({
         customerEmail: currentUser.email,
         customerContact: currentUser.phone,
         date: new Date().toISOString().split('T')[0],
-        status: decisionKey === 'direct_print' ? 'approved' : 'pending_review',
+        status: 'pending_review',
         clientDecision: decisionKey,
         quantity,
         paymentStatus: 'pending',

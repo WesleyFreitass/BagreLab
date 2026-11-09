@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SavedQuote, Material, Printer, AuthUser } from '../lib/types';
 import { formatCurrency } from '../lib/calculator';
 import { PIPELINE_STAGES, PipelineStageKey, getQuoteStage } from '../lib/pipeline';
-import { MessageSquare, Lock, Check, Zap } from 'lucide-react';
+import { MessageSquare, Lock, Check, Zap, Clock } from 'lucide-react';
 import { PixPaymentModal } from './PixPaymentModal';
 
 interface MyRequestsTabProps {
@@ -85,39 +85,39 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
   };
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4 sm:space-y-6">
       
       {/* Cabeçalho dos Pedidos + Resumo Financeiro Compacto */}
-      <div className="paper-card p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="paper-card p-4 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <span className="font-mono-tech text-xs font-bold uppercase text-[#5C5349]">
+          <span className="font-mono-tech text-[10px] sm:text-xs font-bold uppercase text-[#5C5349]">
             ACOMPANHAMENTO DE ORDENS DE SERVIÇO
           </span>
-          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#221E1B]">
+          <h1 className="font-heading text-xl sm:text-3xl font-bold text-[#221E1B]">
             Meus Pedidos & Orçamentos
           </h1>
-          <p className="text-sm text-[#5C5349]">
+          <p className="text-xs sm:text-sm text-[#5C5349]">
             Acompanhe o andamento das suas impressões 3D em tempo real, desde a análise até a conclusão.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="metric-box px-4 py-2.5">
-            <span className="block font-mono-tech text-[10px] uppercase text-[#5C5349]">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
+          <div className="metric-box px-3 sm:px-4 py-2 sm:py-2.5">
+            <span className="block font-mono-tech text-[9px] sm:text-[10px] uppercase text-[#5C5349]">
               PENDENTE DE PAGAMENTO
             </span>
-            <strong className="font-heading text-xl font-bold text-[#221E1B]">
+            <strong className="font-heading text-base sm:text-xl font-bold text-[#221E1B]">
               {formatCurrency(totalPendingPayment)}
             </strong>
           </div>
 
-          <div className="metric-box px-4 py-2.5 border-[#1E3E24] bg-[#E3ECE4]">
-            <span className="block font-mono-tech text-[10px] uppercase text-[#1E3E24] font-bold">
+          <div className="metric-box px-3 sm:px-4 py-2 sm:py-2.5 border-[#1E3E24] bg-[#E3ECE4]">
+            <span className="block font-mono-tech text-[9px] sm:text-[10px] uppercase text-[#1E3E24] font-bold">
               STATUS DOS PAGAMENTOS
             </span>
-            <strong className="font-heading text-sm font-bold text-[#1E3E24]">
+            <strong className="font-heading text-xs sm:text-sm font-bold text-[#1E3E24] truncate">
               {countPending > 0
-                ? `${countPending} aguardando pagamento`
+                ? `${countPending} pendente${countPending !== 1 ? 's' : ''}`
                 : `✓ Todos em dia (${countPaid} pago${countPaid !== 1 ? 's' : ''})`}
             </strong>
           </div>
@@ -125,7 +125,7 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
           <button
             type="button"
             onClick={onOpenMakerWorld}
-            className="btn-forest px-4 py-3 font-heading font-bold text-sm cursor-pointer whitespace-nowrap"
+            className="col-span-2 sm:col-auto btn-forest px-3 sm:px-4 py-2.5 sm:py-3 font-heading font-bold text-xs sm:text-sm cursor-pointer whitespace-nowrap text-center"
           >
             + Novo Orçamento MakerWorld
           </button>
@@ -134,17 +134,17 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
 
       {/* Lista de Ordens de Produção */}
       {myQuotes.length === 0 ? (
-        <div className="paper-card p-10 text-center space-y-3">
-          <h3 className="font-heading text-xl font-bold text-[#221E1B]">
+        <div className="paper-card p-6 sm:p-10 text-center space-y-2 sm:space-y-3">
+          <h3 className="font-heading text-lg sm:text-xl font-bold text-[#221E1B]">
             Nenhum pedido registrado ainda
           </h3>
-          <p className="text-sm text-[#5C5349]">
+          <p className="text-xs sm:text-sm text-[#5C5349] max-w-md mx-auto">
             Cole qualquer link do MakerWorld na aba de Orçador para simular e solicitar sua primeira peça.
           </p>
           <button
             type="button"
             onClick={onOpenMakerWorld}
-            className="btn-forest px-5 py-2.5 font-heading font-bold text-sm inline-block cursor-pointer mt-2"
+            className="btn-forest px-4 sm:px-5 py-2 sm:py-2.5 font-heading font-bold text-xs sm:text-sm inline-block cursor-pointer mt-1 sm:mt-2"
           >
             Orçar Peça no MakerWorld
           </button>
@@ -320,7 +320,13 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!isPaid && (
+                    {/* Bloqueio de Pagamento: Só libera na Etapa 2 (Aguardando Pagamento) */}
+                    {stage === 'pending_review' ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#E4DED5] text-[#554B3E] rounded-lg border border-[#8E8070]">
+                        <Clock className="w-3.5 h-3.5 text-[#554B3E]" />
+                        <span>Em Análise pelo Maker</span>
+                      </span>
+                    ) : !isPaid && stage === 'awaiting_payment' ? (
                       <button
                         type="button"
                         onClick={() => setPayingQuote(q)}
@@ -329,7 +335,7 @@ export const MyRequestsTab: React.FC<MyRequestsTabProps> = ({
                         <Zap className="w-3.5 h-3.5 text-amber-300" />
                         <span>Pagar com Pix (QR Code)</span>
                       </button>
-                    )}
+                    ) : null}
 
                     <button
                       type="button"
